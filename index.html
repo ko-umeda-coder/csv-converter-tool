@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CSVかんたん変換ツール</title>
 <style>
-/* CSSは前回のコードと同じ */
+/* CSSの全内容をここに直接記述 */
 :root {
   --primary: #0066cc;
   --primary-hover: #0052a3;
@@ -502,18 +502,15 @@ select:focus {
 
     <div class="btn-group">
       <button id="convertBtn" class="btn btn-primary" disabled>
-        3️⃣ 変換してプレビュー
-      </button>
-      <button id="downloadBtn" class="btn btn-secondary" style="display:none;">
-        4️⃣ CSVをダウンロード
+        3️⃣ 変換してダウンロード
       </button>
     </div>
 
     <div id="previewSection" class="preview-section" style="display:none;">
-      <div class="preview-title">📊 プレビュー</div>
+      <div class="preview-title">📊 変換結果プレビュー</div>
       <div id="statsBox" class="stats-box"></div>
       <div id="previewContent"></div>
-      <p class="preview-note">※赤色=エラー、緑色=正常</p>
+      <p class="preview-note">※プレビューは最初の5件です</p>
     </div>
   </div>
 
@@ -580,7 +577,6 @@ function parseCsv(text){
   if(v||r.length>0){r.push(v.trim());if(r.some(c=>c!=='')) rows.push(r);}
   return rows;
 }
-
 function escapeCsv(v){if(typeof v!=='string') v=String(v);return (v.includes(',')||v.includes('"')||v.includes('\n'))?`"${v.replace(/"/g,'""')}"`:v;}
 function downloadCsv(rows,filename){const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n');const bom=new Uint8Array([0xEF,0xBB,0xBF]);const blob=new Blob([bom,csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);}
 
@@ -603,7 +599,6 @@ function splitAddress(address,courier){if(!address)return['',''];const lim=ADDRE
 // ==================== プレビュー ====================
 function renderPreview(rows,courier,columns){
   const previewDiv=document.getElementById('previewContent'); const previewSection=document.getElementById('previewSection');
-  const statsBox=document.getElementById('statsBox');
   previewDiv.innerHTML=''; previewSection.style.display='block';
   const table=document.createElement('table');table.className='table-preview';
   const thead=document.createElement('thead');const trh=document.createElement('tr');
