@@ -210,7 +210,7 @@ const waitForXLSX = () => new Promise(resolve => {
     const output = [];
 
     for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[2] || "");
+      const orderNumber = cleanOrderNumber(r[1] || "");
       const postal = cleanTelPostal(r[11] || "");
       const addressFull = r[12] || "";
       const name = r[13] || "";
@@ -220,16 +220,16 @@ const waitForXLSX = () => new Promise(resolve => {
       // ヘッダ数に合わせて空白で初期化（不要列削除なし）
       const rowOut = new Array(headers.length).fill("");
 
-      rowOut[8] = name;
-      rowOut[11] = postal;
-      rowOut[12] = addrParts.pref;
-      rowOut[13] = addrParts.city;
-      rowOut[14] = addrParts.rest;
-      rowOut[16] = phone;
-      rowOut[23] = sender.name;
-      rowOut[31] = cleanTelPostal(sender.phone);
-      rowOut[35] = "ブーケフレーム加工品";
-      rowOut[50] = orderNumber;
+      rowOut[7] = name;
+      rowOut[10] = postal;
+      rowOut[11] = addrParts.pref;
+      rowOut[11] = addrParts.city;
+      rowOut[13] = addrParts.rest;
+      rowOut[15] = phone;
+      rowOut[22] = sender.name;
+      rowOut[30] = cleanTelPostal(sender.phone);
+      rowOut[34] = "ブーケフレーム加工品";
+      rowOut[49] = orderNumber;
 
       output.push(rowOut);
     }
