@@ -222,10 +222,8 @@ async function loadMapping() {
       const phone = cleanTelPostal(r[14]);
       const senderAddrParts = splitAddress(sender.address);
 
-        // === 固定値列 ===
-  sheet[`B${rowExcel}`] = { v: "0", t: "s" };  // ✅ 送り状種類 固定値0
-  sheet[`C${rowExcel}`] = { v: "0", t: "s" };  // ✅ クール区分 固定値0
-
+      sheet[`B${rowExcel}`] = { v: "0", t: "s" };  // ✅ 送り状種類 固定値0
+      sheet[`C${rowExcel}`] = { v: "0", t: "s" };  // ✅ クール区分 固定値0
       sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
       sheet[`E${rowExcel}`] = { v: getValueFromRule("TODAY"), t: "s" };
       sheet[`I${rowExcel}`] = { v: phone, t: "s" };
