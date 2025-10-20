@@ -1,14 +1,93 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>管理モード</title>
-<script src="js/xlsx.full.min.js"></script>
-<script src="js/main.js"></script>
-</head>
-<body>
-  <h1>フォーマット管理モード</h1>
-  <div id="admin-panel"></div>
-</body>
-</html>
+// ==================== 初期設定 ====================
+const ADDRESS_LIMIT = {Yamato:{a1:35,a2:35},Sagawa:{a1:40,a2:40},JapanPost:{a1:50,a2:50}};
+let FORMAT_DATA = {};  // 外部JSON読み込み用
+const COURIERS = ['Yamato','Sagawa','JapanPost'];
 
+// ==================== CSVパーサー ====================
+function parseCsv(text){
+  const rows=[], row=[], value='', inQuotes=false;
+  let r=[], v='', iq=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], next=text[i+1];
+    if(c=='"'&&!iq){iq=true;continue;}
+    if(c=='"'&&iq){if(next=='"'){v+='"';i++;}else{iq=false;continue;}}
+    if(c==','&&!iq){r.push(v.trim());v='';continue;}
+    if((c=='\n'||c=='\r')&&!iq){if(c=='\r'&&next=='\n') i++;r.push(v.trim());if(r.some(c=>c!=='')) rows.push(r);r=[];v='';continue;} 
+    v+=c;
+  }
+  if(v||r.length>0){r.push(v.trim());if(r.some(c=>c!=='')) rows.push(r);}
+  return rows;
+}
+
+function escapeCsv(v){if(typeof v!=='string') v=String(v);return (v.includes(',')||v.includes('"')||v.includes('\n'))?`"${v.replace(/"/g,'""')}"`:v;}
+function downloadCsv(rows, filename){
+  const csv = rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n');
+  const bom = new Uint8Array([0xEF,0xBB,0xBF]);
+  const blob = new Blob([bom,csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+}
+
+// ==================== 住所分割 ====================
+function splitAddress(address,courier){
+  if(!address) return ['',''];
+  const lim = ADDRESS_LIMIT[courier]||{a1:35,a2:35};
+  if(address.length<=lim.a1) return [address,''];
+  const sub = address.substring(0,lim.a1);
+  const matches = [...sub.matchAll(/[\s\-−　ー、。]/g)];
+  if(matches.length>0){ const last = matches[matches.length-1]; const splitPoint=last.index+1;
+    if(splitPoint>lim.a1/2){ return [address.substring(0,splitPoint).trim(), address.substring(splitPoint).trim()]; }
+  }
+  return [address.substring(0,lim.a1).trim(), address.substring(lim.a1).trim()];
+}
+
+// ==================== 変換処理 ====================
+document.getElementById('convertBtn')?.addEventListener('click', ()=>{
+  const file = document.getElementById('csvFile').files[0];
+  if(!file){ alert("CSVを選択してください"); return; }
+  const courier = document.getElementById('courierSelect').value;
+  const senderName = document.getElementById('senderName').value;
+  const senderPostal = document.getElementById('senderPostal').value;
+  const senderAddress = document.getElementById('senderAddress').value;
+  const senderPhone = document.getElementById('senderPhone').value;
+
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const csvText = e.target.result;
+    const rows = parseCsv(csvText);
+
+    // プレビュー
+    const previewDiv = document.getElementById('previewSection');
+    previewDiv.innerHTML = `<h3>CSVプレビュー（最初の5件）</h3>`;
+    const table = document.createElement('table');
+    const tbody = document.createElement('tbody');
+    for(let i=0;i<Math.min(5, rows.length); i++){
+      const tr = document.createElement('tr');
+      rows[i].forEach(cell=>{ const td = document.createElement('td'); td.textContent=cell; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    previewDiv.appendChild(table);
+
+    // 仮でダウンロード
+    downloadCsv(rows, `converted_${file.name}`);
+  };
+  reader.readAsText(file,'UTF-8');
+});
+
+// ==================== 管理者画面 ====================
+document.getElementById('updateFormatBtn')?.addEventListener('click', ()=>{
+  const file = document.getElementById('adminFile').files[0];
+  if(!file){ alert("CSV/Excelを選択してください"); return; }
+  const courier = document.getElementById('adminCourierSelect').value;
+
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const text = e.target.result;
+    const rows = parseCsv(text);
+    const firstRow = rows[0];
+    FORMAT_DATA[courier] = firstRow;
+    document.getElementById('adminPreview').textContent = `列情報を更新しました: ${firstRow.join(', ')}`;
+  };
+  reader.readAsText(file,'UTF-8');
+});
