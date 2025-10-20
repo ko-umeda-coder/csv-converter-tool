@@ -162,7 +162,7 @@ const waitForXLSX = () => new Promise(resolve => {
   // 外部マッピング読込（日本郵政 F列）
   // ============================
   async function loadMappingJapanPost() {
-    const res = await fetch("./js/ゆうプリR_外部データ取込基本レイアウト.xlsx");
+    const res = await fetch("./js/ゆうプリR_外部データ取込基本レイアウト_crean.xlsx");
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array" });
     const sheet = wb.Sheets[wb.SheetNames[0]];
