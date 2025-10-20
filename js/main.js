@@ -1,5 +1,5 @@
 // ============================
-// main.js : CSV変換メイン処理
+// main.js : CSV変換メイン処理（安定版）
 // ============================
 
 console.log("✅ main.js 読み込み完了");
@@ -22,7 +22,7 @@ let convertedRows = [];
 let originalFileName = "";
 
 // ----------------------------
-// 初期化（DOMContentLoaded問題の修正版）
+// 初期化（DOMContentLoadedラップなし版）
 // ----------------------------
 setupFileInput();
 setupConvertButton();
