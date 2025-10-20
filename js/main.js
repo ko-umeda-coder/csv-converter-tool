@@ -209,10 +209,10 @@ const waitForXLSX = () => new Promise(resolve => {
     let rowExcel = 2;
     for (const r of dataRows) {
       const orderNumber = cleanOrderNumber(r[1]);
-      const postal = cleanTelPostal(r[10]);
-      const addressFull = r[11] || "";
-      const name = r[12] || "";
-      const phone = cleanTelPostal(r[13]);
+      const postal = cleanTelPostal(r[11]);
+      const addressFull = r[12] || "";
+      const name = r[13] || "";
+      const phone = cleanTelPostal(r[14]);
       const senderAddrParts = splitAddress(sender.address);
 
       sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
