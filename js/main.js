@@ -132,8 +132,8 @@ const waitForXLSX = () => new Promise(resolve => {
   function cleanOrderNumber(value) {
     if (!value) return "";
     return String(value)
-      .replace(/^(FAX|EC)/i, "") // ✅ FAX・EC削除
-      .replace(/[★\[\]\s]/g, "") // ✅ 記号削除
+      .replace(/^(FAX|EC)/i, "")
+      .replace(/[★\[\]\s]/g, "")
       .trim();
   }
 
@@ -221,7 +221,6 @@ const waitForXLSX = () => new Promise(resolve => {
     let rowExcel = 2;
     for (const r of dataRows) {
       for (const [col, def] of Object.entries(mapping)) {
-        // ✅ def.source を安全に参照
         const value = getValueFromRule(def.source, r, sender);
         sheet[`${col}${rowExcel}`] = { v: value, t: "s" };
       }
@@ -272,6 +271,9 @@ const waitForXLSX = () => new Promise(resolve => {
     });
   }
 
+  // ============================
+  // ダウンロード処理（ヤマト=Excel / ゆうプリ=CSV）
+  // ============================
   function setupDownloadButton() {
     downloadBtn.addEventListener("click", () => {
       if (!mergedWorkbook) {
@@ -280,8 +282,33 @@ const waitForXLSX = () => new Promise(resolve => {
       }
 
       const courier = courierSelect.value;
-      const fileName = courier === "japanpost" ? "japanpost_import.xlsx" : "yamato_b2_import.xlsx";
-      XLSX.writeFile(mergedWorkbook, fileName);
+
+      if (courier === "japanpost") {
+        // === ゆうプリR：CSV出力 ===
+        const sheetName = mergedWorkbook.SheetNames[0];
+        const sheet = mergedWorkbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        const dataRows = json.slice(1); // ✅ 1行目（ヘッダ）削除
+
+        const csvText = dataRows.map(row => 
+          row.map(v => `"${(v ?? "").toString().replace(/"/g, '""')}"`).join(",")
+        ).join("\r\n");
+
+        // Shift_JIS変換
+        const sjisArray = Encoding.convert(Encoding.stringToCode(csvText), 'SJIS');
+        const blob = new Blob([new Uint8Array(sjisArray)], { type: "text/csv" });
+
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "japanpost_import.csv";
+        link.click();
+        URL.revokeObjectURL(link.href);
+        console.log("📦 ゆうプリR CSV出力完了");
+
+      } else {
+        // === ヤマト運輸：Excel出力 ===
+        XLSX.writeFile(mergedWorkbook, "yamato_b2_import.xlsx");
+      }
     });
   }
 })();
