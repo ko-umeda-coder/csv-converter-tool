@@ -106,19 +106,27 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // クレンジング関数
+  // クレンジング関数群
   // ============================
-  function cleanTelPostal(value) {
-    if (!value) return "";
-    return String(value)
+  function cleanTelPostal(v) {
+    if (!v) return "";
+    return String(v)
       .replace(/^="?/, "")
       .replace(/"$/, "")
       .replace(/[^0-9\-]/g, "")
       .trim();
   }
 
+  function cleanOrderNumber(value) {
+    if (!value) return "";
+    return String(value)
+      .replace(/^(FAX|EC)/i, "") // ✅ FAX・EC削除
+      .replace(/[★\[\]\s]/g, "") // ✅ 記号削除
+      .trim();
+  }
+
   // ============================
-  // 住所分割（再定義済み ✅）
+  // 住所分割
   // ============================
   function splitAddress(address) {
     if (!address) return { pref: "", city: "", rest: "" };
@@ -158,6 +166,32 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
+  // 値取得ロジック
+  // ============================
+  function getValueFromRule(rule, csvRow, sender) {
+    if (!rule) return "";
+
+    if (rule.startsWith("固定値")) return rule.replace("固定値", "").trim();
+
+    if (rule === "TODAY") {
+      const d = new Date();
+      return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+    }
+
+    if (rule.startsWith("sender")) {
+      return sender[rule.replace("sender", "").toLowerCase()] || "";
+    }
+
+    const match = rule.match(/CSV\s*([A-Z]+)列/);
+    if (match) {
+      const idx = match[1].charCodeAt(0) - 65;
+      return csvRow[idx] || "";
+    }
+
+    return rule;
+  }
+
+  // ============================
   // ヤマト変換処理
   // ============================
   async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
@@ -174,16 +208,15 @@ const waitForXLSX = () => new Promise(resolve => {
 
     let rowExcel = 2;
     for (const r of dataRows) {
-      // ✅ 正しいCSV列参照
-      const orderNumber = r[1] || "";
+      const orderNumber = cleanOrderNumber(r[1]);
       const postal = cleanTelPostal(r[10]);
       const addressFull = r[11] || "";
-      const name = r[12] || "";  // M列（お届け先氏名）
-      const phone = cleanTelPostal(r[13]); // N列（電話番号）
+      const name = r[12] || "";
+      const phone = cleanTelPostal(r[13]);
       const senderAddrParts = splitAddress(sender.address);
 
       sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
-      sheet[`E${rowExcel}`] = { v: new Date().toLocaleDateString("ja-JP"), t: "s" };
+      sheet[`E${rowExcel}`] = { v: getValueFromRule("TODAY"), t: "s" };
       sheet[`I${rowExcel}`] = { v: phone, t: "s" };
       sheet[`K${rowExcel}`] = { v: postal, t: "s" };
       sheet[`L${rowExcel}`] = { v: addressFull, t: "s" };
