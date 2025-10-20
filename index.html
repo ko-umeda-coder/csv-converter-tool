@@ -173,7 +173,7 @@ function parseCsv(text){
 }
 
 function escapeCsv(v){if(typeof v!=='string') v=String(v);return (v.includes(',')||v.includes('"')||v.includes('\n'))?`"${v.replace(/"/g,'""')}"`:v;}
-function cleanCsvValue(v){return String(v).replace(/^="?/,'').replace(/"?$/,'');}
+function cleanCsvValue(v){return String(v).replace(/^=""?/,'').replace(/""?$/,'');}
 function downloadCsv(rows,filename){const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n');const bom=new Uint8Array([0xEF,0xBB,0xBF]);const blob=new Blob([bom,csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);}
 
 // ============================
@@ -223,5 +223,6 @@ loadSenderInfo();
 <script src="./js/main.js"></script>
 </body>
 </html>
+
 
 
