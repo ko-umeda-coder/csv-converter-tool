@@ -10,57 +10,135 @@
   --primary-hover: #0052a3;
   --success: #28a745;
   --error: #dc3545;
-  --warning: #ffc107;
   --bg-light: #f8f9fa;
   --border: #dee2e6;
   --text-dark: #212529;
   font-size: 18px;
 }
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Meiryo','Yu Gothic',sans-serif;line-height:1.8;background:var(--bg-light);padding:20px;color:var(--text-dark);}
-.container{max-width:900px;margin:0 auto;}
-.header{background:linear-gradient(135deg,var(--primary),#0080ff);color:white;padding:30px 25px;border-radius:12px;margin-bottom:30px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
-.header h1{font-size:2em;margin-bottom:10px;}
-.header p{font-size:1.1em;opacity:0.95;}
-.section{background:white;padding:30px;border-radius:12px;margin-bottom:25px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-.section h2{font-size:1.6em;color:var(--primary);margin-bottom:25px;padding-bottom:12px;border-bottom:3px solid var(--primary);}
-.form-group{margin-bottom:25px;}
-.form-label{display:block;font-size:1.2em;font-weight:bold;margin-bottom:12px;color:var(--text-dark);}
-.file-input-wrapper{position:relative;border:3px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;background:var(--bg-light);cursor:pointer;transition:all 0.3s;}
-.file-input-wrapper:hover{border-color:var(--primary);background:#e3f2fd;}
-.file-input-wrapper.has-file{border-color:var(--success);background:#d4edda;}
-.file-input-wrapper input[type="file"]{position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;}
-.file-icon{font-size:3em;margin-bottom:10px;}
-.file-text{font-size:1.2em;font-weight:bold;color:var(--text-dark);}
-.file-subtext{font-size:1em;color:#6c757d;margin-top:8px;}
-.file-name{margin-top:15px;font-size:1.1em;color:var(--success);font-weight:bold;}
-select, input[type=text]{width:100%;padding:16px;font-size:1.2em;border:2px solid var(--border);border-radius:8px;background:white;cursor:pointer;transition:border-color 0.3s;}
-select:focus, input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,102,204,0.1);}
-.btn-group{display:flex;gap:15px;}
-.btn{width:100%;padding:18px;font-size:1.3em;font-weight:bold;border:none;border-radius:8px;cursor:pointer;transition:all 0.3s;min-height:60px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
-.btn-primary{background:var(--primary);color:white;}
-.btn-primary:hover:not(:disabled){background:var(--primary-hover);transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,0.2);}
-.btn-primary:disabled{background:#ccc;cursor:not-allowed;opacity:0.6;}
-.btn-secondary{background:#6c757d;color:white;opacity:0.6;cursor:not-allowed;}
-.btn-secondary.active{background:var(--primary);color:white;opacity:1;cursor:pointer;}
-.message{display:none;padding:20px;margin:20px 0;border-radius:8px;font-size:1.2em;font-weight:bold;border-left:5px solid;}
-.message.error{background:#f8d7da;border-color:var(--error);color:#721c24;}
-.message.success{background:#d4edda;border-color:var(--success);color:#155724;}
-.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;z-index:9999;}
-.loading-content{text-align:center;color:white;}
-.spinner{width:60px;height:60px;border:6px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.loading-text{font-size:1.5em;font-weight:bold;}
-.preview-section{margin-top:25px;padding-top:25px;border-top:2px solid var(--border);}
-.preview-title{font-size:1.3em;font-weight:bold;color:var(--text-dark);margin-bottom:15px;}
-.table-preview{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.95em;overflow-x:auto;display:block;}
-.table-preview th,.table-preview td{border:1px solid var(--border);padding:10px;text-align:left;white-space:nowrap;}
-.table-preview th{background:#e9ecef;font-weight:bold;position:sticky;top:0;}
-.preview-note{color:#6c757d;font-size:0.95em;margin-top:10px;font-style:italic;}
-.stats-box{background:var(--bg-light);border:2px solid var(--border);border-radius:8px;padding:15px;margin:20px 0;display:flex;justify-content:space-around;flex-wrap:wrap;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
-.stat-item{text-align:center;padding:10px;min-width:120px;}
-.stat-number{font-size:2em;font-weight:bold;color:var(--primary);}
-.stat-label{font-size:1em;color:#6c757d;margin-top:5px;}
+* {margin:0;padding:0;box-sizing:border-box;}
+body {
+  font-family:'Meiryo','Yu Gothic',sans-serif;
+  line-height:1.8;
+  background:var(--bg-light);
+  padding:20px;
+  color:var(--text-dark);
+}
+.container {max-width:900px;margin:0 auto;}
+.header {
+  background:linear-gradient(135deg,var(--primary),#0080ff);
+  color:white;
+  padding:30px 25px;
+  border-radius:12px;
+  margin-bottom:30px;
+  text-align:center;
+  box-shadow:0 4px 6px rgba(0,0,0,0.1);
+}
+.header h1 {font-size:2em;margin-bottom:10px;}
+.header p {font-size:1.1em;opacity:0.95;}
+.section {
+  background:white;
+  padding:30px;
+  border-radius:12px;
+  margin-bottom:25px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+.section h2 {
+  font-size:1.6em;
+  color:var(--primary);
+  margin-bottom:25px;
+  padding-bottom:12px;
+  border-bottom:3px solid var(--primary);
+}
+.form-group {margin-bottom:25px;}
+.form-label {display:block;font-size:1.2em;font-weight:bold;margin-bottom:12px;color:var(--text-dark);}
+.file-input-wrapper {
+  position:relative;
+  border:3px dashed var(--border);
+  border-radius:12px;
+  padding:40px 20px;
+  text-align:center;
+  background:var(--bg-light);
+  cursor:pointer;
+  transition:all 0.3s;
+}
+.file-input-wrapper:hover {border-color:var(--primary);background:#e3f2fd;}
+.file-input-wrapper.has-file {border-color:var(--success);background:#d4edda;}
+.file-input-wrapper input[type="file"] {
+  position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;
+}
+.file-icon {font-size:3em;margin-bottom:10px;}
+.file-text {font-size:1.2em;font-weight:bold;color:var(--text-dark);}
+.file-subtext {font-size:1em;color:#6c757d;margin-top:8px;}
+.file-name {margin-top:15px;font-size:1.1em;color:var(--success);font-weight:bold;}
+select, input[type=text] {
+  width:100%;
+  padding:16px;
+  font-size:1.2em;
+  border:2px solid var(--border);
+  border-radius:8px;
+  background:white;
+  cursor:pointer;
+  transition:border-color 0.3s;
+}
+select:focus, input[type=text]:focus {
+  outline:none;
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(0,102,204,0.1);
+}
+.btn-group {display:flex;gap:15px;}
+.btn {
+  width:100%;
+  padding:18px;
+  font-size:1.3em;
+  font-weight:bold;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  transition:all 0.3s;
+  min-height:60px;
+  box-shadow:0 2px 4px rgba(0,0,0,0.1);
+}
+.btn-primary {background:var(--primary);color:white;}
+.btn-primary:hover:not(:disabled) {
+  background:var(--primary-hover);
+  transform:translateY(-2px);
+  box-shadow:0 4px 8px rgba(0,0,0,0.2);
+}
+.btn-primary:disabled {background:#ccc;cursor:not-allowed;opacity:0.6;}
+.btn-secondary {background:#6c757d;color:white;opacity:0.6;cursor:not-allowed;}
+.btn-secondary.active {background:var(--primary);color:white;opacity:1;cursor:pointer;}
+.message {
+  display:none;
+  padding:20px;
+  margin:20px 0;
+  border-radius:8px;
+  font-size:1.2em;
+  font-weight:bold;
+  border-left:5px solid;
+}
+.message.error {background:#f8d7da;border-color:var(--error);color:#721c24;}
+.message.success {background:#d4edda;border-color:var(--success);color:#155724;}
+.loading-overlay {
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:rgba(0,0,0,0.7);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+.loading-content {text-align:center;color:white;}
+.spinner {
+  width:60px;height:60px;
+  border:6px solid rgba(255,255,255,0.3);
+  border-top-color:white;
+  border-radius:50%;
+  animation:spin 1s linear infinite;
+  margin:0 auto 20px;
+}
+@keyframes spin {to{transform:rotate(360deg);}}
+.loading-text {font-size:1.5em;font-weight:bold;}
 </style>
 </head>
 <body>
@@ -82,6 +160,7 @@ select:focus, input[type=text]:focus{outline:none;border-color:var(--primary);bo
   <div class="section">
     <h2>🔄 CSV変換</h2>
     <div id="message" class="message"></div>
+
     <div class="form-group">
       <label class="form-label">1️⃣ CSVファイルを選択</label>
       <div class="file-input-wrapper" id="fileWrapper">
@@ -92,50 +171,27 @@ select:focus, input[type=text]:focus{outline:none;border-color:var(--primary);bo
         <div class="file-name" id="fileName"></div>
       </div>
     </div>
+
     <div class="form-group">
       <label class="form-label">2️⃣ 変換先の宅配会社を選択</label>
       <select id="courierSelect"></select>
     </div>
 
     <div class="btn-group">
-      <button id="convertBtn" class="btn btn-primary" disabled>3️⃣ 変換してプレビュー</button>
-      <button id="downloadBtn" class="btn btn-secondary" style="display:none;">4️⃣ CSVをダウンロード</button>
-    </div>
-
-    <div id="previewSection" class="preview-section" style="display:none;">
-      <div class="preview-title">📊 変換結果プレビュー</div>
-      <div id="statsBox" class="stats-box"></div>
-      <div id="previewContent"></div>
-      <p class="preview-note">※プレビューは最初の5件です</p>
+      <button id="convertBtn" class="btn btn-primary" disabled>3️⃣ テンプレートに転記</button>
+      <button id="downloadBtn" class="btn btn-secondary" style="display:none;">4️⃣ Excelをダウンロード</button>
     </div>
   </div>
 </div>
 
-<script src="./js/xlsx.full.min.js"></script>
-<script>
-// ============================
-// cleanCsvValue (Excel式対策版)
-// ============================
-function cleanCsvValue(v) {
-  if (v === undefined || v === null) return '';
-  v = String(v).trim();
-  if (v.match(/^="?(.+?)"?$/)) v = v.replace(/^="?/, '').replace(/"$/, '');
-  if (v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1);
-  v = v.replace(/""/g, '"');
-  return v;
-}
-</script>
-<!-- 1️⃣ XLSXライブラリ（Excel操作用） -->
+<!-- 1️⃣ Excel操作ライブラリ -->
 <script src="./js/xlsx.full.min.js"></script>
 
-<!-- 2️⃣ encoding-japanese（Shift_JIS対応用） -->
+<!-- 2️⃣ Shift_JIS変換ライブラリ -->
 <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js"></script>
 
-<!-- 3️⃣ あなたの main.js -->
+<!-- 3️⃣ メインロジック -->
 <script src="./js/main.js"></script>
 
 </body>
 </html>
-
-
-
