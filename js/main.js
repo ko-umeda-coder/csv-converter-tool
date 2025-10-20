@@ -1,5 +1,5 @@
 // ============================
-// main.js : CSV変換メイン処理（最終安定版）
+// main.js : CSV変換メイン処理（宅配会社拡張対応版）
 // ============================
 
 console.log("✅ main.js 読み込み完了");
@@ -21,9 +21,71 @@ let originalFileName = "";
 // ============================
 // 初期化
 // ============================
+setupCourierOptions();
 setupFileInput();
 setupConvertButton();
 setupDownloadButton();
+
+// ============================
+// 宅配会社の選択肢を追加
+// ============================
+function setupCourierOptions() {
+  const options = [
+    { value: "yamato", text: "ヤマト運輸" },
+    { value: "sagawa", text: "佐川急便（今後対応予定）" },
+    { value: "japanpost", text: "日本郵政（今後対応予定）" }
+  ];
+  courierSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join("");
+}
+
+// ============================
+// 各社フォーマット定義
+// ============================
+const formats = {
+  yamato: {
+    name: "ヤマト運輸",
+    headers: [
+      "お客様管理番号", "送り状種類", "クール区分", "出荷予定日",
+      "お届け先電話番号", "お届け先郵便番号", "お届け先住所１", "お届け先氏名",
+      "品名1", "ご依頼主", "ご依頼主電話番号", "ご依頼主郵便番号", "ご依頼主住所"
+    ],
+    map: (row, senderInfo) => {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const shipDate = `${yyyy}/${mm}/${dd}`;
+
+      return [
+        row.col2 || "",
+        "0",
+        "0",
+        shipDate,
+        row.col14 || "",
+        row.col11 || "",
+        row.col12 || "",
+        row.col13 || "",
+        "ブーケフレーム加工品",
+        senderInfo.name,
+        senderInfo.phone,
+        senderInfo.postal,
+        senderInfo.address
+      ];
+    }
+  },
+
+  sagawa: {
+    name: "佐川急便",
+    headers: ["（今後追加予定）"],
+    map: () => []
+  },
+
+  japanpost: {
+    name: "日本郵政",
+    headers: ["（今後追加予定）"],
+    map: () => []
+  }
+};
 
 // ============================
 // ファイル選択
@@ -41,6 +103,19 @@ function setupFileInput() {
       fileWrapper.classList.remove("has-file");
       convertBtn.disabled = true;
     }
+  });
+}
+
+// ============================
+// CSVパース（簡易版）
+// ============================
+function parseCsv(text) {
+  const rows = text.split(/\r?\n/).filter(r => r.trim() !== "").map(r => r.split(","));
+  const headers = rows[0];
+  return rows.slice(1).map(r => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h.trim()] = r[i] || ""; });
+    return obj;
   });
 }
 
@@ -66,11 +141,11 @@ function setupConvertButton() {
 
       convertedRows = converted;
       showPreview(converted);
-      showStats(rows.length - 1, converted.length - 1);
+      showStats(rows.length, converted.length);
 
-      showMessage("変換が完了しました！", "success");
+      showMessage(`${format.name}形式に変換が完了しました！`, "success");
 
-      // ✅ ダウンロードボタンを青く活性化
+      // ダウンロードボタン活性化
       downloadBtn.style.display = "block";
       downloadBtn.disabled = false;
       downloadBtn.classList.remove("btn-secondary");
@@ -86,13 +161,42 @@ function setupConvertButton() {
 }
 
 // ============================
+// 宅配会社別変換処理
+// ============================
+function convertToCourierFormat(rows, senderInfo, format, courier) {
+  if (!format) return [];
+  const mapped = rows.map(r => format.map(r, senderInfo));
+  return mapped;
+}
+
+// ============================
+// ダウンロード処理（Shift_JIS）
+// ============================
+function downloadCsv(rows, filename) {
+  if (rows.length === 0) return;
+
+  const csv = rows.map(r => r.join(",")).join("\r\n");
+  const sjisArray = Encoding.convert(Encoding.stringToCode(csv), 'SJIS', 'UNICODE');
+  const sjisBlob = new Blob([new Uint8Array(sjisArray)], { type: 'text/csv' });
+
+  const url = URL.createObjectURL(sjisBlob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || "yamato_b2_import.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ============================
 // ダウンロードボタン
 // ============================
 function setupDownloadButton() {
   downloadBtn.addEventListener("click", () => {
     if (convertedRows.length === 0) return;
     const courier = courierSelect.value;
-    const filename = originalFileName.replace(/\.csv$/, `_${courier}.csv`);
+    const filename = courier === "yamato" ? "yamato_b2_import.csv" : `${courier}_export.csv`;
     downloadCsv(convertedRows, filename);
   });
 }
@@ -138,7 +242,7 @@ function showLoading(show) {
 // ============================
 function showPreview(rows) {
   previewSection.style.display = "block";
-  const previewRows = rows.slice(0, 6);
+  const previewRows = rows.slice(0, 5);
   let html = "<table class='table-preview'>";
   previewRows.forEach((r) => {
     html += "<tr>" + r.map(v => `<td>${v}</td>`).join("") + "</tr>";
