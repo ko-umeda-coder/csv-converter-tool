@@ -132,8 +132,8 @@ const waitForXLSX = () => new Promise(resolve => {
   function cleanOrderNumber(value) {
     if (!value) return "";
     return String(value)
-      .replace(/^(FAX|EC)/i, "")
-      .replace(/[★\[\]\s]/g, "")
+      .replace(/^(FAX|EC)/i, "") // ✅ FAX・EC削除
+      .replace(/[★\[\]\s]/g, "") // ✅ 記号削除
       .trim();
   }
 
@@ -159,7 +159,7 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // 外部マッピング読込（F=参照元, G=備考）
+  // 外部マッピング読込（日本郵政 F列）
   // ============================
   async function loadMappingJapanPost() {
     const res = await fetch("./js/ゆうプリR_外部データ取込基本レイアウト.xlsx");
@@ -171,22 +171,26 @@ const waitForXLSX = () => new Promise(resolve => {
     mapping = {};
     data.forEach((row, i) => {
       if (!row[0] || i === 0) return;
-      mapping[row[0]] = { source: row[5] || "" }; // ✅ F列参照（index 5）
+      const val = row[5]; // F列参照
+      mapping[row[0]] = { source: (val !== undefined && val !== null) ? String(val).trim() : "" };
     });
 
     console.log("✅ 日本郵政マッピング読込完了:", mapping);
   }
 
   // ============================
-  // 値取得ロジック（共通）
+  // 値取得ロジック（安全型処理）
   // ============================
   function getValueFromRule(rule, csvRow, sender) {
-    if (!rule) return "";
+    if (rule == null) return "";
+    if (typeof rule !== "string") rule = String(rule);
+    rule = rule.trim();
+
     if (rule.startsWith("固定値")) return rule.replace("固定値", "").trim();
-    if (/^\d+$/.test(rule)) return rule;
+    if (/^\d+$/.test(rule)) return rule; // 固定値 0, 1 など
     if (rule === "TODAY") {
       const d = new Date();
-      return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+      return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
     }
     if (rule.startsWith("sender")) return sender[rule.replace("sender", "").toLowerCase()] || "";
 
@@ -195,6 +199,7 @@ const waitForXLSX = () => new Promise(resolve => {
       const idx = match[1].charCodeAt(0) - 65;
       return csvRow[idx] || "";
     }
+
     return rule;
   }
 
@@ -216,6 +221,7 @@ const waitForXLSX = () => new Promise(resolve => {
     let rowExcel = 2;
     for (const r of dataRows) {
       for (const [col, def] of Object.entries(mapping)) {
+        // ✅ def.source を安全に参照
         const value = getValueFromRule(def.source, r, sender);
         sheet[`${col}${rowExcel}`] = { v: value, t: "s" };
       }
