@@ -70,7 +70,7 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // メッセージ
+  // メッセージ表示
   // ============================
   function showMessage(text, type = "info") {
     messageBox.style.display = "block";
@@ -118,7 +118,7 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // 住所分割
+  // 住所分割（再定義済み ✅）
   // ============================
   function splitAddress(address) {
     if (!address) return { pref: "", city: "", rest: "" };
@@ -158,33 +158,6 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // 値の取得ロジック
-  // ============================
-  function getValueFromRule(rule, csvRow, sender) {
-    if (!rule) return "";
-
-    if (rule.startsWith("固定値")) {
-      return rule.replace("固定値", "").trim();
-    }
-    if (rule === "TODAY") {
-      const d = new Date();
-      return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
-    }
-    if (rule.startsWith("sender")) {
-      return sender[rule.replace("sender", "").toLowerCase()] || "";
-    }
-
-    const csvMatch = rule.match(/CSV\s*([A-Z]+)列/);
-    if (csvMatch) {
-      const colLetter = csvMatch[1];
-      const colIndex = colLetter.charCodeAt(0) - 65; // A→0
-      return csvRow[colIndex] || "";
-    }
-
-    return rule;
-  }
-
-  // ============================
   // ヤマト変換処理
   // ============================
   async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
@@ -201,16 +174,16 @@ const waitForXLSX = () => new Promise(resolve => {
 
     let rowExcel = 2;
     for (const r of dataRows) {
-      // ✅ 修正版：M列（お届け先氏名）とN列（電話番号）を正しく参照
+      // ✅ 正しいCSV列参照
       const orderNumber = r[1] || "";
       const postal = cleanTelPostal(r[10]);
       const addressFull = r[11] || "";
-      const name = r[12] || "";  // ← M列
-      const phone = cleanTelPostal(r[13]); // ← N列
+      const name = r[12] || "";  // M列（お届け先氏名）
+      const phone = cleanTelPostal(r[13]); // N列（電話番号）
       const senderAddrParts = splitAddress(sender.address);
 
       sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
-      sheet[`E${rowExcel}`] = { v: getValueFromRule("TODAY"), t: "s" };
+      sheet[`E${rowExcel}`] = { v: new Date().toLocaleDateString("ja-JP"), t: "s" };
       sheet[`I${rowExcel}`] = { v: phone, t: "s" };
       sheet[`K${rowExcel}`] = { v: postal, t: "s" };
       sheet[`L${rowExcel}`] = { v: addressFull, t: "s" };
@@ -240,7 +213,7 @@ const waitForXLSX = () => new Promise(resolve => {
       }
 
       showLoading(true);
-      showMessage("ヤマトマッピングに基づき変換中...", "info");
+      showMessage("ヤマトテンプレートに転記中...", "info");
 
       try {
         const sender = getSenderInfo();
