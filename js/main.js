@@ -228,6 +228,8 @@ async function convertToJapanPost(csvFile, sender) {
     rowOut[12] = addrParts.rest;               // M列：番地・建物
     rowOut[14] = phone;                        // O列：電話番号
     rowOut[21] = sender.name;                  // V列：送り主名
+    rowOut[25] = cleanTelPostal(sender.postal); // Z列：送り主郵便番号
+    rowOut[26] = splitAddress(sender.address); // AA列：送り主住所
     rowOut[29] = cleanTelPostal(sender.phone); // AD列：送り主電話
     rowOut[33] = "ブーケフレーム加工品";       // AH列：固定値
     rowOut[48] = orderNumber;                  // AW列：注文番号
