@@ -147,27 +147,20 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // 外部マッピング読込
+  // 外部マッピング読込（A=出力列, B=参照元/固定値, C=備考）
   // ============================
-// ============================
-// 外部マッピング読込（A=出力列, B=参照元/固定値, C=備考）
-// ============================
-async function loadMapping() {
-  const res = await fetch("./js/ヤマト.xlsx");
-  const buf = await res.arrayBuffer();
-  const wb = XLSX.read(buf, { type: "array" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  async function loadMapping() {
+    const res = await fetch("./js/ヤマト.xlsx");
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-  mapping = {};
-  data.forEach((row, i) => {
-    if (!row[0] || i === 0) return; // ヘッダー・空行スキップ
-    mapping[row[0]] = { source: row[1] || "" }; // ✅ B列のみ使用
-  });
-
-  console.log("✅ マッピング読込完了:", mapping);
-}
-
+    mapping = {};
+    data.forEach((row, i) => {
+      if (!row[0] || i === 0) return; // ヘッダー・空行スキップ
+      mapping[row[0]] = { source: row[1] || "" }; // ✅ B列のみ使用
+    });
 
     console.log("✅ マッピング読込完了:", mapping);
   }
@@ -178,7 +171,9 @@ async function loadMapping() {
   function getValueFromRule(rule, csvRow, sender) {
     if (!rule) return "";
 
+    // 固定値 or 0
     if (rule.startsWith("固定値")) return rule.replace("固定値", "").trim();
+    if (/^\d+$/.test(rule)) return rule; // 0などの数値もOK
 
     if (rule === "TODAY") {
       const d = new Date();
@@ -222,8 +217,11 @@ async function loadMapping() {
       const phone = cleanTelPostal(r[14]);
       const senderAddrParts = splitAddress(sender.address);
 
-      sheet[`B${rowExcel}`] = { v: "0", t: "s" };  // ✅ 送り状種類 固定値0
-      sheet[`C${rowExcel}`] = { v: "0", t: "s" };  // ✅ クール区分 固定値0
+      // 固定値
+      sheet[`B${rowExcel}`] = { v: "0", t: "s" }; // 送り状種類 固定値0
+      sheet[`C${rowExcel}`] = { v: "0", t: "s" }; // クール区分 固定値0
+
+      // 通常項目
       sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
       sheet[`E${rowExcel}`] = { v: getValueFromRule("TODAY"), t: "s" };
       sheet[`I${rowExcel}`] = { v: phone, t: "s" };
