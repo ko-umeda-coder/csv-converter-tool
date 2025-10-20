@@ -169,7 +169,7 @@ function showLoading(show) {
 }
 
 // ----------------------------
-// 宅配会社フォーマット変換処理
+// 宅配会社フォーマット変換処理（cleanCsvValue対応版）
 // ----------------------------
 function convertToCourierFormat(rows, sender, format, courier) {
   const header = format.columns.map(col => col.header);
@@ -184,9 +184,9 @@ function convertToCourierFormat(rows, sender, format, courier) {
     const newRow = format.columns.map(col => {
       if (col.source?.startsWith("col")) {
         const idx = parseInt(col.source.replace("col", "")) - 1;
-        return original[idx] || "";
+        return cleanCsvValue(original[idx] || "");
       } else if (headerMap[col.source] !== undefined) {
-        return original[headerMap[col.source]] || "";
+        return cleanCsvValue(original[headerMap[col.source]] || "");
       } else if (col.value) {
         return col.value;
       } else if (col.source?.startsWith("sender")) {
@@ -201,6 +201,7 @@ function convertToCourierFormat(rows, sender, format, courier) {
 
   return result;
 }
+
 
 // ----------------------------
 // プレビュー表示
