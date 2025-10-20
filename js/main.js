@@ -1,6 +1,33 @@
 // ============================
 // main.js : ヤマトテンプレート自動転記＋Excel出力版
 // ============================
+// ============================
+// XLSXライブラリ読み込み待機
+// ============================
+const waitForXLSX = () => new Promise(resolve => {
+  const check = () => {
+    if (window.XLSX) {
+      console.log("✅ XLSXライブラリ検出完了");
+      resolve();
+    } else {
+      setTimeout(check, 100);
+    }
+  };
+  check();
+});
+
+// ============================
+// main.js本体を安全に実行
+// ============================
+(async () => {
+  await waitForXLSX();
+
+  console.log("✅ main.js 初期化開始");
+
+  // ここから下に、あなたの既存の main.js コード全体を入れる
+  // つまり「setupFileInput()」「setupConvertButton()」など全部
+})();
+
 
 console.log("✅ main.js 読み込み完了");
 
