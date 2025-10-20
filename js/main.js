@@ -14,11 +14,11 @@ const waitForXLSX = () => new Promise(resolve => {
 });
 
 // ============================
-// main.js本体
+// main.js 本体
 // ============================
 (async () => {
   await waitForXLSX();
-  console.log("✅ main.js 初期化開始");
+  console.log("✅ main.js 起動");
 
   const fileInput = document.getElementById("csvFile");
   const fileWrapper = document.getElementById("fileWrapper");
@@ -29,12 +29,19 @@ const waitForXLSX = () => new Promise(resolve => {
   const courierSelect = document.getElementById("courierSelect");
 
   let mergedWorkbook = null;
+  let mapping = {};
 
+  // ============================
+  // 初期化
+  // ============================
   setupCourierOptions();
   setupFileInput();
   setupConvertButton();
   setupDownloadButton();
 
+  // ============================
+  // 宅配会社リスト
+  // ============================
   function setupCourierOptions() {
     const options = [
       { value: "yamato", text: "ヤマト運輸" },
@@ -44,10 +51,14 @@ const waitForXLSX = () => new Promise(resolve => {
     courierSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join("");
   }
 
+  // ============================
+  // ファイル選択
+  // ============================
   function setupFileInput() {
     fileInput.addEventListener("change", () => {
       if (fileInput.files.length > 0) {
-        fileName.textContent = fileInput.files[0].name;
+        const file = fileInput.files[0];
+        fileName.textContent = file.name;
         fileWrapper.classList.add("has-file");
         convertBtn.disabled = false;
       } else {
@@ -58,24 +69,33 @@ const waitForXLSX = () => new Promise(resolve => {
     });
   }
 
+  // ============================
+  // メッセージ
+  // ============================
   function showMessage(text, type = "info") {
     messageBox.style.display = "block";
     messageBox.textContent = text;
     messageBox.className = "message " + type;
   }
 
+  // ============================
+  // ローディング表示
+  // ============================
   function showLoading(show) {
     let overlay = document.getElementById("loading");
     if (!overlay) {
       overlay = document.createElement("div");
       overlay.id = "loading";
       overlay.className = "loading-overlay";
-      overlay.innerHTML = `<div class="loading-content"><div class="spinner"></div><div class="loading-text">変換中...</div></div>`;
+      overlay.innerHTML = `<div class="loading-content"><div class="spinner"></div><div class="loading-text">処理中...</div></div>`;
       document.body.appendChild(overlay);
     }
     overlay.style.display = show ? "flex" : "none";
   }
 
+  // ============================
+  // 送り主情報
+  // ============================
   function getSenderInfo() {
     return {
       name: document.getElementById("senderName").value.trim(),
@@ -85,7 +105,9 @@ const waitForXLSX = () => new Promise(resolve => {
     };
   }
 
-  // ========== クレンジング関数 ==========
+  // ============================
+  // クレンジング関数
+  // ============================
   function cleanTelPostal(value) {
     if (!value) return "";
     return String(value)
@@ -95,79 +117,90 @@ const waitForXLSX = () => new Promise(resolve => {
       .trim();
   }
 
-  function cleanOrderNumber(value) {
-    if (!value) return "";
-    return String(value)
-      .replace(/^FAX/i, "")
-      .replace(/[★\[\]\s]/g, "")
-      .trim();
+  // ============================
+  // 外部マッピング読込
+  // ============================
+  async function loadMapping() {
+    const res = await fetch("./js/ヤマト.xlsx");
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    mapping = {};
+    data.forEach((row, i) => {
+      if (!row[0] || i === 0) return;
+      mapping[row[0]] = { source: row[1] || "", rule: row[2] || "" };
+    });
+
+    console.log("✅ マッピング読込完了:", mapping);
   }
 
-  function splitAddress(address) {
-    if (!address) return { pref: "", city: "", rest: "" };
-    const prefectures = [
-      "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
-      "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
-      "新潟県","富山県","石川県","福井県","山梨県","長野県",
-      "岐阜県","静岡県","愛知県","三重県",
-      "滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
-      "鳥取県","島根県","岡山県","広島県","山口県",
-      "徳島県","香川県","愛媛県","高知県",
-      "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
-    ];
-    const pref = prefectures.find(p => address.startsWith(p)) || "";
-    const rest = pref ? address.replace(pref, "") : address;
-    const [city, ...restParts] = rest.split(/(?<=市|区|町|村)/);
-    return { pref, city, rest: restParts.join("") };
+  // ============================
+  // 値の取得ロジック
+  // ============================
+  function getValueFromRule(rule, csvRow, sender, headerMap) {
+    if (!rule) return "";
+
+    // 固定値
+    if (rule.startsWith("固定値")) {
+      return rule.replace("固定値", "").trim();
+    }
+
+    // 今日の日付
+    if (rule === "TODAY") {
+      const d = new Date();
+      return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+    }
+
+    // UI項目
+    if (rule.startsWith("sender")) {
+      return sender[rule.replace("sender", "").toLowerCase()] || "";
+    }
+
+    // CSV列指定（例：CSV M列）
+    const csvMatch = rule.match(/CSV\s*([A-Z]+)列/);
+    if (csvMatch) {
+      const colLetter = csvMatch[1];
+      const colIndex = colLetter.charCodeAt(0) - 65; // A→0
+      return csvRow[colIndex] || "";
+    }
+
+    return rule;
   }
 
-  // ========== メイン変換処理 ==========
+  // ============================
+  // ヤマト変換処理
+  // ============================
   async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
+    await loadMapping();
+
     const csvText = await csvFile.text();
     const rows = csvText.trim().split(/\r?\n/).map(line => line.split(","));
     const dataRows = rows.slice(1);
 
-    const response = await fetch(templateUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheet = workbook.Sheets["外部データ取り込み基本レイアウト"];
-
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const shipDate = `${yyyy}/${mm}/${dd}`;
+    const res = await fetch(templateUrl);
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets["外部データ取り込み基本レイアウト"];
 
     let rowExcel = 2;
     for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[1]); // ご注文番号
-      const postal = cleanTelPostal(r[10]);       // 郵便番号
-      const addressFull = r[11] || "";            // 住所（旧L列→K列へ）
-      const name = r[12] || "";                   // 宛名（旧P列→L列へ）
-      const company = r[12] || "";                // CSV M列→P列
-      const phone = cleanTelPostal(r[13]);        // CSV N列→I列
-      const addrParts = splitAddress(addressFull);
-      const senderAddrParts = splitAddress(sender.address);
-
-      sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
-      sheet[`E${rowExcel}`] = { v: shipDate, t: "s" };
-      sheet[`K${rowExcel}`] = { v: cleanTelPostal(`${addrParts.pref}${addrParts.city}${addrParts.rest}`), t: "s" }; // ← L列→K列
-      sheet[`L${rowExcel}`] = { v: name, t: "s" };  // ← P列→L列
-      sheet[`P${rowExcel}`] = { v: company, t: "s" }; // ← CSV M列参照
-      sheet[`I${rowExcel}`] = { v: cleanTelPostal(phone), t: "s" }; // ← CSV N列参照
-      sheet[`Y${rowExcel}`] = { v: sender.name, t: "s" };
-      sheet[`T${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
-      sheet[`V${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
-      sheet[`W${rowExcel}`] = { v: `${senderAddrParts.pref}${senderAddrParts.city}${senderAddrParts.rest}`, t: "s" };
-      sheet[`AB${rowExcel}`] = { v: "ブーケフレーム加工品", t: "s" };
-
+      for (const [yamatoCol, def] of Object.entries(mapping)) {
+        const value = getValueFromRule(def.source || def.rule, r, sender);
+        const cellRef = yamatoCol + rowExcel;
+        const cleaned = /電話|郵便番号/.test(yamatoCol) ? cleanTelPostal(value) : value;
+        sheet[cellRef] = { v: cleaned, t: "s" };
+      }
       rowExcel++;
     }
 
-    return workbook;
+    return wb;
   }
 
-  // ========== 変換ボタン ==========
+  // ============================
+  // ボタン処理
+  // ============================
   function setupConvertButton() {
     convertBtn.addEventListener("click", async () => {
       const file = fileInput.files[0];
@@ -178,30 +211,28 @@ const waitForXLSX = () => new Promise(resolve => {
       }
 
       showLoading(true);
-      showMessage("ヤマトテンプレートに転記中...", "info");
+      showMessage("ヤマトマッピングに基づき変換中...", "info");
 
       try {
         const sender = getSenderInfo();
-        const templatePath = "./js/newb2web_template1.xlsx";
-        mergedWorkbook = await mergeToYamatoTemplate(file, templatePath, sender);
-        showMessage("✅ 転記が完了しました。ダウンロードできます。", "success");
+        mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
+        showMessage("✅ 変換完了。ダウンロードできます。", "success");
         downloadBtn.style.display = "block";
         downloadBtn.disabled = false;
         downloadBtn.className = "btn btn-primary";
       } catch (err) {
         console.error(err);
-        showMessage("転記中にエラーが発生しました。", "error");
+        showMessage("変換中にエラーが発生しました。", "error");
       } finally {
         showLoading(false);
       }
     });
   }
 
-  // ========== ダウンロードボタン ==========
   function setupDownloadButton() {
     downloadBtn.addEventListener("click", () => {
       if (!mergedWorkbook) {
-        alert("変換後データがありません。");
+        alert("変換データがありません。");
         return;
       }
       XLSX.writeFile(mergedWorkbook, "yamato_b2_import.xlsx");
