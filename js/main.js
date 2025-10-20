@@ -48,7 +48,9 @@ const waitForXLSX = () => new Promise(resolve => {
       { value: "japanpost", text: "日本郵政（ゆうプリR）" },
       { value: "sagawa", text: "佐川急便（今後対応予定）" },
     ];
-    courierSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join("");
+    courierSelect.innerHTML = options
+      .map(o => `<option value="${o.value}">${o.text}</option>`)
+      .join("");
   }
 
   // ============================
@@ -184,39 +186,60 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // ゆうプリR変換処理（修正版）
+  // ゆうプリR変換処理（完全修正版）
   // ============================
   async function convertToJapanPost(csvFile, sender) {
     const text = await csvFile.text();
-    const rows = text.trim().split(/\r?\n/).map(l => l.split(","));
-    const dataRows = rows.slice(1); // 1行目削除
+    const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
+
+    // --- 基本レイアウト（Excel）読込 ---
+    const res = await fetch("./js/ゆうプリR_外部データ取込基本レイアウト.xlsx");
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+
+    // 1行目 = ヘッダ取得
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    const headers = [];
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
+      headers.push(cell ? String(cell.v).trim() : "");
+    }
+
+    const dataRows = rows.slice(1); // 1行目は除外
     const output = [];
 
     for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[2]); // ご注文番号
-      const postal = cleanTelPostal(r[11]);       // 郵便番号（K）
-      const addressFull = r[12] || "";            // 住所（L）
-      const name = r[13] || "";                   // 氏名（M）
-      const phone = cleanTelPostal(r[14]);        // 電話（N）
+      const orderNumber = cleanOrderNumber(r[2] || "");
+      const postal = cleanTelPostal(r[11] || "");
+      const addressFull = r[12] || "";
+      const name = r[13] || "";
+      const phone = cleanTelPostal(r[14] || "");
       const addrParts = splitAddress(addressFull);
 
-      const rowOut = [];
-      rowOut[8] = name;                           // 8列目：氏名
-      rowOut[11] = postal;                        // 11列目：郵便番号
-      rowOut[12] = addrParts.pref;                // 12列目：都道府県
-      rowOut[13] = addrParts.city;                // 13列目：市区町村
-      rowOut[14] = addrParts.rest;                // 14列目：番地・建物
-      rowOut[16] = phone;                         // 16列目：電話番号
-      rowOut[23] = sender.name;                   // 23列目：送り主名
-      rowOut[31] = cleanTelPostal(sender.phone);  // 31列目：送り主電話
-      rowOut[35] = "ブーケフレーム加工品";       // 35列目：固定値
-      rowOut[50] = orderNumber;                   // 50列目：注文番号
+      // ヘッダ数に合わせて空白で初期化（不要列削除なし）
+      const rowOut = new Array(headers.length).fill("");
+
+      rowOut[8] = name;
+      rowOut[11] = postal;
+      rowOut[12] = addrParts.pref;
+      rowOut[13] = addrParts.city;
+      rowOut[14] = addrParts.rest;
+      rowOut[16] = phone;
+      rowOut[23] = sender.name;
+      rowOut[31] = cleanTelPostal(sender.phone);
+      rowOut[35] = "ブーケフレーム加工品";
+      rowOut[50] = orderNumber;
 
       output.push(rowOut);
     }
 
-    // CSV生成
-    const csvText = output.map(r => r.map(v => `"${v || ""}"`).join(",")).join("\r\n");
+    // CSV生成（空白維持・不要列削除なし）
+    const csvText = [
+      headers.map(h => `"${h || ""}"`).join(","),
+      ...output.map(row => row.map(v => `"${v || ""}"`).join(","))
+    ].join("\r\n");
+
     const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
     return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
   }
