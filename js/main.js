@@ -118,6 +118,27 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
+  // 住所分割
+  // ============================
+  function splitAddress(address) {
+    if (!address) return { pref: "", city: "", rest: "" };
+    const prefectures = [
+      "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
+      "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
+      "新潟県","富山県","石川県","福井県","山梨県","長野県",
+      "岐阜県","静岡県","愛知県","三重県",
+      "滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
+      "鳥取県","島根県","岡山県","広島県","山口県",
+      "徳島県","香川県","愛媛県","高知県",
+      "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
+    ];
+    const pref = prefectures.find(p => address.startsWith(p)) || "";
+    const rest = pref ? address.replace(pref, "") : address;
+    const [city, ...restParts] = rest.split(/(?<=市|区|町|村)/);
+    return { pref, city, rest: restParts.join("") };
+  }
+
+  // ============================
   // 外部マッピング読込
   // ============================
   async function loadMapping() {
@@ -139,26 +160,20 @@ const waitForXLSX = () => new Promise(resolve => {
   // ============================
   // 値の取得ロジック
   // ============================
-  function getValueFromRule(rule, csvRow, sender, headerMap) {
+  function getValueFromRule(rule, csvRow, sender) {
     if (!rule) return "";
 
-    // 固定値
     if (rule.startsWith("固定値")) {
       return rule.replace("固定値", "").trim();
     }
-
-    // 今日の日付
     if (rule === "TODAY") {
       const d = new Date();
       return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
     }
-
-    // UI項目
     if (rule.startsWith("sender")) {
       return sender[rule.replace("sender", "").toLowerCase()] || "";
     }
 
-    // CSV列指定（例：CSV M列）
     const csvMatch = rule.match(/CSV\s*([A-Z]+)列/);
     if (csvMatch) {
       const colLetter = csvMatch[1];
@@ -172,47 +187,45 @@ const waitForXLSX = () => new Promise(resolve => {
   // ============================
   // ヤマト変換処理
   // ============================
-  // ...省略（前半は同じ）
+  async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
+    await loadMapping();
 
-async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
-  await loadMapping();
+    const csvText = await csvFile.text();
+    const rows = csvText.trim().split(/\r?\n/).map(line => line.split(","));
+    const dataRows = rows.slice(1);
 
-  const csvText = await csvFile.text();
-  const rows = csvText.trim().split(/\r?\n/).map(line => line.split(","));
-  const dataRows = rows.slice(1);
+    const res = await fetch(templateUrl);
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets["外部データ取り込み基本レイアウト"];
 
-  const res = await fetch(templateUrl);
-  const buf = await res.arrayBuffer();
-  const wb = XLSX.read(buf, { type: "array" });
-  const sheet = wb.Sheets["外部データ取り込み基本レイアウト"];
+    let rowExcel = 2;
+    for (const r of dataRows) {
+      // ✅ 修正版：M列（お届け先氏名）とN列（電話番号）を正しく参照
+      const orderNumber = r[1] || "";
+      const postal = cleanTelPostal(r[10]);
+      const addressFull = r[11] || "";
+      const name = r[12] || "";  // ← M列
+      const phone = cleanTelPostal(r[13]); // ← N列
+      const senderAddrParts = splitAddress(sender.address);
 
-  let rowExcel = 2;
-  for (const r of dataRows) {
-    const orderNumber = r[1] || "";
-    const postal = cleanTelPostal(r[10]);
-    const addressFull = r[11] || "";
-    const name = r[12] || "";  // ✅ M列（お届け先氏名）
-    const phone = cleanTelPostal(r[13]); // ✅ N列（電話番号）
-    const senderAddrParts = splitAddress(sender.address);
+      sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
+      sheet[`E${rowExcel}`] = { v: getValueFromRule("TODAY"), t: "s" };
+      sheet[`I${rowExcel}`] = { v: phone, t: "s" };
+      sheet[`K${rowExcel}`] = { v: postal, t: "s" };
+      sheet[`L${rowExcel}`] = { v: addressFull, t: "s" };
+      sheet[`P${rowExcel}`] = { v: name, t: "s" };
+      sheet[`Y${rowExcel}`] = { v: sender.name, t: "s" };
+      sheet[`T${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
+      sheet[`V${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
+      sheet[`W${rowExcel}`] = { v: `${senderAddrParts.pref}${senderAddrParts.city}${senderAddrParts.rest}`, t: "s" };
+      sheet[`AB${rowExcel}`] = { v: "ブーケフレーム加工品", t: "s" };
 
-    // 出力
-    sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
-    sheet[`I${rowExcel}`] = { v: phone, t: "s" };            // ✅ N列参照
-    sheet[`K${rowExcel}`] = { v: postal, t: "s" };
-    sheet[`L${rowExcel}`] = { v: addressFull, t: "s" };
-    sheet[`P${rowExcel}`] = { v: name, t: "s" };              // ✅ M列参照
-    sheet[`Y${rowExcel}`] = { v: sender.name, t: "s" };
-    sheet[`T${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
-    sheet[`V${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
-    sheet[`W${rowExcel}`] = { v: `${senderAddrParts.pref}${senderAddrParts.city}${senderAddrParts.rest}`, t: "s" };
-    sheet[`AB${rowExcel}`] = { v: "ブーケフレーム加工品", t: "s" };
+      rowExcel++;
+    }
 
-    rowExcel++;
+    return wb;
   }
-
-  return wb;
-}
-
 
   // ============================
   // ボタン処理
