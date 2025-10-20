@@ -142,47 +142,73 @@ const waitForXLSX = () => new Promise(resolve => {
     { col: 28, rule: "senderPhone" },
   ];
 
-  // ============================
-  // ゆうプリR変換
-  // ============================
-  async function convertToJapanPost(csvFile, sender) {
-    const text = await csvFile.text();
-    const rows = text.trim().split(/\r?\n/).map(l => l.split(","));
-    const dataRows = rows.slice(1); // 1行目削除
+// ============================
+// ゆうプリR変換処理（修正版）
+// ============================
+async function convertToJapanPost(csvFile, sender) {
+  const text = await csvFile.text();
+  const rows = text.trim().split(/\r?\n/).map(l => l.split(","));
+  const dataRows = rows.slice(1); // 1行目削除
 
-    const output = [];
+  const output = [];
 
-    for (const r of dataRows) {
-      const address = r[12] || "";
-      const parts = splitAddress(address);
-      const rowOut = [];
+  // Excel列文字 → 数値(A=0, B=1, ..., Z=25, AA=26)
+  const colLetterToIndex = letter => {
+    return letter
+      .split("")
+      .reduce((n, c) => n * 26 + (c.charCodeAt(0) - 65 + 1), 0) - 1;
+  };
 
-      japanPostMapping.forEach(m => {
-        let val = "";
-        const rule = m.rule;
-        if (rule.startsWith("固定値")) val = rule.replace("固定値", "").trim();
-        else if (/CSV\s*([A-Z])列/.test(rule)) {
-          const col = rule.match(/CSV\s*([A-Z])列/)[1].charCodeAt(0) - 65;
-          val = r[col] || "";
-        } else if (rule.startsWith("sender")) {
-          const key = rule.replace("sender", "").toLowerCase();
-          val = sender[key] || "";
-        } else if (rule.startsWith("住所")) {
-          if (rule.includes("市区町村")) val = parts.city;
-          else if (rule.includes("番地")) val = parts.rest;
-          else if (rule.includes("建物")) val = "";
-        }
-        rowOut[m.col - 1] = cleanTelPostal(val);
-      });
+  for (const r of dataRows) {
+    const address = r[12] || ""; // L列（住所）
+    const parts = splitAddress(address);
+    const rowOut = [];
 
-      output.push(rowOut);
-    }
+    japanPostMapping.forEach(m => {
+      let val = "";
+      const rule = m.rule.trim();
 
-    // CSV生成
-    const csvText = output.map(r => r.map(v => `"${v || ""}"`).join(",")).join("\r\n");
-    const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
-    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+      if (rule.startsWith("固定値")) {
+        // 固定値
+        val = rule.replace("固定値", "").trim();
+      } 
+      else if (/CSV\s*([A-Z]+)列/.test(rule)) {
+        // CSV列参照（A〜Z, AA〜）
+        const colLetter = rule.match(/CSV\s*([A-Z]+)列/)[1];
+        const colIndex = colLetterToIndex(colLetter);
+        val = r[colIndex] || "";
+      } 
+      else if (rule.startsWith("sender")) {
+        // UIからの送り主情報
+        const key = rule.replace("sender", "").toLowerCase();
+        val = sender[key] || "";
+      } 
+      else if (rule.startsWith("住所")) {
+        // 住所分割
+        if (rule.includes("市区町村")) val = parts.city;
+        else if (rule.includes("番地")) val = parts.rest;
+        else if (rule.includes("建物")) val = "";
+      }
+
+      // クレンジング処理（電話・郵便番号など）
+      if (m.col === 11 || m.col === 16 || m.col === 26 || m.col === 28) {
+        val = cleanTelPostal(val);
+      }
+
+      rowOut[m.col - 1] = val;
+    });
+
+    output.push(rowOut);
   }
+
+  // CSV生成
+  const csvText = output.map(r => r.map(v => `"${v || ""}"`).join(",")).join("\r\n");
+
+  // Shift_JIS変換
+  const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+  return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+}
+
 
   // ============================
   // 変換ボタン
