@@ -98,9 +98,13 @@ function setupConvertButton() {
       convertedRows = converted;
       showPreview(converted);
       showStats(rows.length - 1, converted.length - 1);
-      showMessage("変換が完了しました！", "success");
-      downloadBtn.style.display = "block";
-      downloadBtn.disabled = false;
+showMessage("変換が完了しました！", "success");
+
+// ボタンを確実に有効化・再スタイル
+downloadBtn.style.display = "block";
+downloadBtn.disabled = false;
+downloadBtn.classList.remove("btn-secondary");
+downloadBtn.classList.add("btn-primary");
 
     } catch (err) {
       console.error(err);
