@@ -1,204 +1,285 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CSVかんたん変換ツール</title>
-<style>
-:root {
-  --primary: #0066cc;
-  --primary-hover: #0052a3;
-  --success: #28a745;
-  --error: #dc3545;
-  --bg-light: #f8f9fa;
-  --border: #dee2e6;
-  --text-dark: #212529;
-  font-size: 18px;
-}
-* {margin:0;padding:0;box-sizing:border-box;}
-body {
-  font-family:'Meiryo','Yu Gothic',sans-serif;
-  line-height:1.8;
-  background:var(--bg-light);
-  padding:20px;
-  color:var(--text-dark);
-}
-.container {max-width:900px;margin:0 auto;}
-.header {
-  background:linear-gradient(135deg,var(--primary),#0080ff);
-  color:white;
-  padding:30px 25px;
-  border-radius:12px;
-  margin-bottom:30px;
-  text-align:center;
-  box-shadow:0 4px 6px rgba(0,0,0,0.1);
-}
-.header h1 {font-size:2em;margin-bottom:10px;}
-.header p {font-size:1.1em;opacity:0.95;}
-.section {
-  background:white;
-  padding:30px;
-  border-radius:12px;
-  margin-bottom:25px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.1);
-}
-.section h2 {
-  font-size:1.6em;
-  color:var(--primary);
-  margin-bottom:25px;
-  padding-bottom:12px;
-  border-bottom:3px solid var(--primary);
-}
-.form-group {margin-bottom:25px;}
-.form-label {display:block;font-size:1.2em;font-weight:bold;margin-bottom:12px;color:var(--text-dark);}
-.file-input-wrapper {
-  position:relative;
-  border:3px dashed var(--border);
-  border-radius:12px;
-  padding:40px 20px;
-  text-align:center;
-  background:var(--bg-light);
-  cursor:pointer;
-  transition:all 0.3s;
-}
-.file-input-wrapper:hover {border-color:var(--primary);background:#e3f2fd;}
-.file-input-wrapper.has-file {border-color:var(--success);background:#d4edda;}
-.file-input-wrapper input[type="file"] {
-  position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;
-}
-.file-icon {font-size:3em;margin-bottom:10px;}
-.file-text {font-size:1.2em;font-weight:bold;color:var(--text-dark);}
-.file-subtext {font-size:1em;color:#6c757d;margin-top:8px;}
-.file-name {margin-top:15px;font-size:1.1em;color:var(--success);font-weight:bold;}
-select, input[type=text] {
-  width:100%;
-  padding:16px;
-  font-size:1.2em;
-  border:2px solid var(--border);
-  border-radius:8px;
-  background:white;
-  cursor:pointer;
-  transition:border-color 0.3s;
-}
-select:focus, input[type=text]:focus {
-  outline:none;
-  border-color:var(--primary);
-  box-shadow:0 0 0 3px rgba(0,102,204,0.1);
-}
-.btn-group {display:flex;gap:15px;}
-.btn {
-  width:100%;
-  padding:18px;
-  font-size:1.3em;
-  font-weight:bold;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  transition:all 0.3s;
-  min-height:60px;
-  box-shadow:0 2px 4px rgba(0,0,0,0.1);
-}
-.btn-primary {background:var(--primary);color:white;}
-.btn-primary:hover:not(:disabled) {
-  background:var(--primary-hover);
-  transform:translateY(-2px);
-  box-shadow:0 4px 8px rgba(0,0,0,0.2);
-}
-.btn-primary:disabled {background:#ccc;cursor:not-allowed;opacity:0.6;}
-.btn-secondary {background:#6c757d;color:white;opacity:0.6;cursor:not-allowed;}
-.btn-secondary.active {background:var(--primary);color:white;opacity:1;cursor:pointer;}
-.message {
-  display:none;
-  padding:20px;
-  margin:20px 0;
-  border-radius:8px;
-  font-size:1.2em;
-  font-weight:bold;
-  border-left:5px solid;
-}
-.message.error {background:#f8d7da;border-color:var(--error);color:#721c24;}
-.message.success {background:#d4edda;border-color:var(--success);color:#155724;}
-.loading-overlay {
-  position:fixed;
-  top:0;left:0;
-  width:100%;height:100%;
-  background:rgba(0,0,0,0.7);
-  display:none;
-  justify-content:center;
-  align-items:center;
-  z-index:9999;
-}
-.loading-content {text-align:center;color:white;}
-.spinner {
-  width:60px;height:60px;
-  border:6px solid rgba(255,255,255,0.3);
-  border-top-color:white;
-  border-radius:50%;
-  animation:spin 1s linear infinite;
-  margin:0 auto 20px;
-}
-@keyframes spin {to{transform:rotate(360deg);}}
-.loading-text {font-size:1.5em;font-weight:bold;}
-</style>
-</head>
-<body>
+// ============================
+// XLSXライブラリ読み込み待機
+// ============================
+const waitForXLSX = () => new Promise(resolve => {
+  const check = () => {
+    if (window.XLSX) {
+      console.log("✅ XLSXライブラリ検出完了");
+      resolve();
+    } else {
+      setTimeout(check, 100);
+    }
+  };
+  check();
+});
 
-<div class="container">
-  <div class="header">
-    <h1>📦 CSVかんたん変換ツール</h1>
-    <p>基幹システムCSVを宅配便用に変換します</p>
-  </div>
+// ============================
+// main.js 本体
+// ============================
+(async () => {
+  await waitForXLSX();
+  console.log("✅ main.js 起動");
 
-  <div class="section">
-    <h2>📮 送り主情報</h2>
-    <div class="form-group"><label class="form-label">送り主氏名</label><input type="text" id="senderName"></div>
-    <div class="form-group"><label class="form-label">送り主郵便番号</label><input type="text" id="senderPostal"></div>
-    <div class="form-group"><label class="form-label">送り主住所</label><input type="text" id="senderAddress"></div>
-    <div class="form-group"><label class="form-label">送り主電話番号</label><input type="text" id="senderPhone"></div>
-  </div>
+  const fileInput = document.getElementById("csvFile");
+  const fileWrapper = document.getElementById("fileWrapper");
+  const fileName = document.getElementById("fileName");
+  const convertBtn = document.getElementById("convertBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const messageBox = document.getElementById("message");
+  const courierSelect = document.getElementById("courierSelect");
 
-  <div class="section">
-    <h2>🔄 CSV変換</h2>
-    <div id="message" class="message"></div>
+  let mergedWorkbook = null;
+  let mapping = {};
 
-    <div class="form-group">
-      <label class="form-label">1️⃣ CSVファイルを選択</label>
-      <div class="file-input-wrapper" id="fileWrapper">
-        <input type="file" id="csvFile" accept=".csv">
-        <div class="file-icon">📄</div>
-        <div class="file-text">クリックしてファイルを選択</div>
-        <div class="file-subtext">または、ここにファイルをドラッグ＆ドロップ</div>
-        <div class="file-name" id="fileName"></div>
-      </div>
-    </div>
+  // ============================
+  // 初期化
+  // ============================
+  setupCourierOptions();
+  setupFileInput();
+  setupConvertButton();
+  setupDownloadButton();
 
-<div class="form-group">
-  <label class="form-label">2️⃣ 変換先の宅配会社を選択</label>
-  <select id="courierSelect">
-    <option value="">選択してください</option>
-    <option value="yamato">ヤマト運輸</option>
-    <option value="japanpost">日本郵政（ゆうプリR）</option>
-    <option value="sagawa">佐川急便（今後対応予定）</option>
-  </select>
-</div>
+  // ============================
+  // 宅配会社リスト
+  // ============================
+  function setupCourierOptions() {
+    const options = [
+      { value: "", text: "選択してください" },
+      { value: "yamato", text: "ヤマト運輸" },
+      { value: "japanpost", text: "日本郵政（ゆうプリR）" },
+      { value: "sagawa", text: "佐川急便（今後対応予定）" },
+    ];
+    courierSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join("");
+    courierSelect.disabled = false;
+    courierSelect.value = "";
 
+    courierSelect.addEventListener("change", () => {
+      if (courierSelect.value) {
+        console.log("📦 選択された宅配会社:", courierSelect.value);
+        convertBtn.disabled = fileInput.files.length === 0;
+      } else {
+        convertBtn.disabled = true;
+      }
+    });
+  }
 
-    <div class="btn-group">
-      <button id="convertBtn" class="btn btn-primary" disabled>3️⃣ テンプレートに転記</button>
-      <button id="downloadBtn" class="btn btn-secondary" style="display:none;">4️⃣ Excelをダウンロード</button>
-    </div>
-  </div>
-</div>
+  // ============================
+  // ファイル選択
+  // ============================
+  function setupFileInput() {
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        fileName.textContent = file.name;
+        fileWrapper.classList.add("has-file");
+        convertBtn.disabled = false;
+      } else {
+        fileName.textContent = "";
+        fileWrapper.classList.remove("has-file");
+        convertBtn.disabled = true;
+      }
+    });
+  }
 
-<!-- 1️⃣ Excel操作ライブラリ -->
-<script src="./js/xlsx.full.min.js"></script>
+  // ============================
+  // メッセージ表示
+  // ============================
+  function showMessage(text, type = "info") {
+    messageBox.style.display = "block";
+    messageBox.textContent = text;
+    messageBox.className = "message " + type;
+  }
 
-<!-- 2️⃣ Shift_JIS変換ライブラリ -->
-<script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js"></script>
+  // ============================
+  // ローディング表示
+  // ============================
+  function showLoading(show) {
+    let overlay = document.getElementById("loading");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "loading";
+      overlay.className = "loading-overlay";
+      overlay.innerHTML = `<div class="loading-content"><div class="spinner"></div><div class="loading-text">処理中...</div></div>`;
+      document.body.appendChild(overlay);
+    }
+    overlay.style.display = show ? "flex" : "none";
+  }
 
-<!-- 3️⃣ メインロジック -->
-<script src="./js/main.js"></script>
+  // ============================
+  // 送り主情報
+  // ============================
+  function getSenderInfo() {
+    return {
+      name: document.getElementById("senderName").value.trim(),
+      postal: document.getElementById("senderPostal").value.trim(),
+      address: document.getElementById("senderAddress").value.trim(),
+      phone: document.getElementById("senderPhone").value.trim(),
+    };
+  }
 
-</body>
-</html>
+  // ============================
+  // クレンジング関数群
+  // ============================
+  function cleanTelPostal(v) {
+    if (!v) return "";
+    return String(v)
+      .replace(/^="?/, "")
+      .replace(/"$/, "")
+      .replace(/[^0-9\-]/g, "")
+      .trim();
+  }
 
+  function cleanOrderNumber(value) {
+    if (!value) return "";
+    return String(value)
+      .replace(/^(FAX|EC)/i, "")
+      .replace(/[★\[\]\s]/g, "")
+      .trim();
+  }
+
+  // ============================
+  // 住所分割
+  // ============================
+  function splitAddress(address) {
+    if (!address) return { pref: "", city: "", rest: "" };
+    const prefList = [
+      "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
+      "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
+      "新潟県","富山県","石川県","福井県","山梨県","長野県",
+      "岐阜県","静岡県","愛知県","三重県",
+      "滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
+      "鳥取県","島根県","岡山県","広島県","山口県",
+      "徳島県","香川県","愛媛県","高知県",
+      "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
+    ];
+    const pref = prefList.find(p => address.startsWith(p)) || "";
+    const rest = pref ? address.replace(pref, "") : address;
+    const [city, ...restParts] = rest.split(/(?<=市|区|町|村)/);
+    return { pref, city, rest: restParts.join("") };
+  }
+
+  // ============================
+  // 外部マッピング読込（日本郵政）
+  // ============================
+  async function loadMappingJapanPost() {
+    const res = await fetch("./js/ゆうプリR_外部データ取込基本レイアウト.xlsx");
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    mapping = {};
+    data.forEach((row, i) => {
+      if (!row[0] || i === 0) return;
+      const val = row[5]; // F列参照（index 5）
+      mapping[row[0]] = { source: (val !== undefined && val !== null) ? String(val).trim() : "" };
+    });
+
+    console.log("✅ 日本郵政マッピング読込完了:", mapping);
+  }
+
+  // ============================
+  // 値取得ロジック（安全化）
+  // ============================
+  function getValueFromRule(rule, csvRow, sender) {
+    if (rule == null) return "";
+    rule = String(rule).trim();
+
+    if (rule.startsWith("固定値")) return rule.replace("固定値", "").trim();
+    if (/^\d+$/.test(rule)) return rule; // 数値固定値（例: 0）
+    if (rule === "TODAY") {
+      const d = new Date();
+      return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+    }
+    if (rule.startsWith("sender")) return sender[rule.replace("sender", "").toLowerCase()] || "";
+
+    const match = rule.match(/CSV\s*([A-Z]+)列/);
+    if (match) {
+      const idx = match[1].charCodeAt(0) - 65;
+      return csvRow[idx] || "";
+    }
+
+    return rule;
+  }
+
+  // ============================
+  // 日本郵政（ゆうプリR）変換処理
+  // ============================
+  async function mergeToJapanpostTemplate(csvFile, templateUrl, sender) {
+    await loadMappingJapanPost();
+
+    const csvText = await csvFile.text();
+    const rows = csvText.trim().split(/\r?\n/).map(line => line.split(","));
+    const dataRows = rows.slice(1);
+
+    const res = await fetch(templateUrl);
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+
+    let rowExcel = 2;
+    for (const r of dataRows) {
+      for (const [col, def] of Object.entries(mapping)) {
+        const value = getValueFromRule(def.source, r, sender);
+        sheet[`${col}${rowExcel}`] = { v: value, t: "s" };
+      }
+      rowExcel++;
+    }
+
+    return wb;
+  }
+
+  // ============================
+  // ボタン処理
+  // ============================
+  function setupConvertButton() {
+    convertBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      const courier = courierSelect.value;
+      if (!file || !courier) {
+        showMessage("宅配会社を選択してください。", "error");
+        return;
+      }
+
+      showLoading(true);
+      showMessage("変換中...", "info");
+
+      try {
+        const sender = getSenderInfo();
+
+        if (courier === "yamato") {
+          mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
+        } else if (courier === "japanpost") {
+          mergedWorkbook = await mergeToJapanpostTemplate(file, "./js/ゆうプリR_外部データ取込基本レイアウト.xlsx", sender);
+        } else {
+          showMessage("現在対応しているのはヤマト運輸・日本郵政のみです。", "error");
+          showLoading(false);
+          return;
+        }
+
+        showMessage("✅ 変換完了。ダウンロードできます。", "success");
+        downloadBtn.style.display = "block";
+        downloadBtn.disabled = false;
+        downloadBtn.className = "btn btn-primary";
+      } catch (err) {
+        console.error(err);
+        showMessage("変換中にエラーが発生しました。", "error");
+      } finally {
+        showLoading(false);
+      }
+    });
+  }
+
+  function setupDownloadButton() {
+    downloadBtn.addEventListener("click", () => {
+      if (!mergedWorkbook) {
+        alert("変換データがありません。");
+        return;
+      }
+
+      const courier = courierSelect.value;
+      const fileName = courier === "japanpost" ? "japanpost_import.xlsx" : "yamato_b2_import.xlsx";
+      XLSX.writeFile(mergedWorkbook, fileName);
+    });
+  }
+})();
