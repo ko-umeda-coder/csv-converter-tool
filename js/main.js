@@ -114,7 +114,8 @@ const waitForXLSX = () => new Promise(resolve => {
     return String(value)
       .replace(/^="?/, "")   // =" の除去
       .replace(/"$/, "")     // 末尾の " の除去
-      .replace(/[^0-9\-]/g, ""); // 数字とハイフン以外削除
+      .replace(/[^0-9\-]/g, "") // 数字とハイフン以外削除
+      .trim();
   }
 
   function cleanOrderNumber(value) {
@@ -141,6 +142,14 @@ const waitForXLSX = () => new Promise(resolve => {
     return { pref, city, rest: restParts.join("") };
   }
 
+  // --- ヤマト住所25文字分割 ---
+  function splitAddressForYamato(fullAddr) {
+    if (!fullAddr) return ["", ""];
+    const addr1 = fullAddr.slice(0, 25);
+    const addr2 = fullAddr.length > 25 ? fullAddr.slice(25) : "";
+    return [addr1, addr2];
+  }
+
   // ============================
   // メイン変換処理
   // ============================
@@ -162,20 +171,25 @@ const waitForXLSX = () => new Promise(resolve => {
 
     let rowExcel = 2;
     for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[1]);
-      const postal = cleanTelPostal(r[10]);
-      const phone = cleanTelPostal(r[13]);
-      const addressFull = r[11] || "";
-      const name = r[12] || "";
+      const orderNumber = cleanOrderNumber(r[1]); // ご注文番号
+      const postal = cleanTelPostal(r[10]);       // 郵便番号
+      const phone = cleanTelPostal(r[13]);        // 電話番号
+      const addressFull = r[11] || "";            // 住所
+      const name = r[12] || "";                   // 宛名
+      const company = r[12] || "";                // CSV M列（参照していない問題修正）
 
       const addrParts = splitAddress(addressFull);
       const senderAddrParts = splitAddress(sender.address);
+      const [addr1, addr2] = splitAddressForYamato(`${addrParts.pref}${addrParts.city}${addrParts.rest}`);
 
+      // --- 出力 ---
       sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
       sheet[`E${rowExcel}`] = { v: shipDate, t: "s" };
       sheet[`K${rowExcel}`] = { v: postal, t: "s" };
-      sheet[`L${rowExcel}`] = { v: `${addrParts.pref}${addrParts.city}${addrParts.rest}`, t: "s" };
+      sheet[`L${rowExcel}`] = { v: addr1, t: "s" }; // 住所1
+      sheet[`M${rowExcel}`] = { v: addr2, t: "s" }; // 住所2
       sheet[`P${rowExcel}`] = { v: name, t: "s" };
+      sheet[`Q${rowExcel}`] = { v: company, t: "s" }; // M列反映
       sheet[`I${rowExcel}`] = { v: phone, t: "s" };
       sheet[`Y${rowExcel}`] = { v: sender.name, t: "s" };
       sheet[`T${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
