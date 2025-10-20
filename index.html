@@ -138,9 +138,9 @@ select:focus, input[type=text]:focus{outline:none;border-color:var(--primary);bo
 // ============================
 // 設定
 // ============================
-const ADDRESS_LIMIT = {Yamato:{a1:35,a2:35}, Sagawa:{a1:40,a2:40}, JapanPost:{a1:50,a2:50}};
+const ADDRESS_LIMIT = {yamato:{a1:35,a2:35}, sagawa:{a1:40,a2:40}, japanpost:{a1:50,a2:50}};
 const MAX_HISTORY = 50;
-const COURIER_NAMES = {'Yamato':'ヤマト運輸','Sagawa':'佐川急便','JapanPost':'日本郵便'};
+const COURIER_NAMES = {'yamato':'ヤマト運輸','sagawa':'佐川急便','japanpost':'日本郵便'};
 let formats = {}; // 各社JSON列定義
 let lastConvertedRows = [];
 let lastFileName = '';
@@ -216,3 +216,4 @@ loadSenderInfo();
 <script src="./js/main.js"></script>
 </body>
 </html>
+
