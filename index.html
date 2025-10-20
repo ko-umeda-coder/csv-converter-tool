@@ -2,147 +2,217 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CSVかんたん変換ツール</title>
 <style>
-/* 基本スタイル（省略可） */
-body{font-family:'Meiryo',sans-serif;padding:20px;background:#f8f9fa;}
+:root {
+  --primary: #0066cc;
+  --primary-hover: #0052a3;
+  --success: #28a745;
+  --error: #dc3545;
+  --warning: #ffc107;
+  --bg-light: #f8f9fa;
+  --border: #dee2e6;
+  --text-dark: #212529;
+  font-size: 18px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Meiryo','Yu Gothic',sans-serif;line-height:1.8;background:var(--bg-light);padding:20px;color:var(--text-dark);}
 .container{max-width:900px;margin:0 auto;}
-.header{background:#0066cc;color:white;padding:20px;border-radius:12px;text-align:center;margin-bottom:20px;}
-.header h1{font-size:2em;}
-.section{background:white;padding:20px;border-radius:12px;margin-bottom:20px;}
-.file-input-wrapper{border:2px dashed #ccc;padding:40px;text-align:center;border-radius:8px;cursor:pointer;position:relative;}
+.header{background:linear-gradient(135deg,var(--primary),#0080ff);color:white;padding:30px 25px;border-radius:12px;margin-bottom:30px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+.header h1{font-size:2em;margin-bottom:10px;}
+.header p{font-size:1.1em;opacity:0.95;}
+.section{background:white;padding:30px;border-radius:12px;margin-bottom:25px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.section h2{font-size:1.6em;color:var(--primary);margin-bottom:25px;padding-bottom:12px;border-bottom:3px solid var(--primary);}
+.form-group{margin-bottom:25px;}
+.form-label{display:block;font-size:1.2em;font-weight:bold;margin-bottom:12px;color:var(--text-dark);}
+.file-input-wrapper{position:relative;border:3px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;background:var(--bg-light);cursor:pointer;transition:all 0.3s;}
+.file-input-wrapper:hover{border-color:var(--primary);background:#e3f2fd;}
+.file-input-wrapper.has-file{border-color:var(--success);background:#d4edda;}
 .file-input-wrapper input[type="file"]{position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;}
-.table-preview{width:100%;border-collapse:collapse;margin-top:15px;}
-.table-preview th,.table-preview td{border:1px solid #ccc;padding:8px;text-align:left;}
+.file-icon{font-size:3em;margin-bottom:10px;}
+.file-text{font-size:1.2em;font-weight:bold;color:var(--text-dark);}
+.file-subtext{font-size:1em;color:#6c757d;margin-top:8px;}
+.file-name{margin-top:15px;font-size:1.1em;color:var(--success);font-weight:bold;}
+select, input[type=text]{width:100%;padding:16px;font-size:1.2em;border:2px solid var(--border);border-radius:8px;background:white;cursor:pointer;transition:border-color 0.3s;}
+select:focus, input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,102,204,0.1);}
+.btn-group{display:flex;gap:15px;}
+.btn{width:100%;padding:18px;font-size:1.3em;font-weight:bold;border:none;border-radius:8px;cursor:pointer;transition:all 0.3s;min-height:60px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.btn-primary{background:var(--primary);color:white;}
+.btn-primary:hover:not(:disabled){background:var(--primary-hover);transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,0.2);}
+.btn-primary:disabled{background:#ccc;cursor:not-allowed;opacity:0.6;}
+.btn-secondary{background:#6c757d;color:white;}
+.btn-secondary:hover:not(:disabled){background:#5a6268;transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,0.2);}
+.btn-secondary:disabled{background:#ccc;cursor:not-allowed;opacity:0.6;}
+.message{display:none;padding:20px;margin:20px 0;border-radius:8px;font-size:1.2em;font-weight:bold;border-left:5px solid;}
+.message.error{background:#f8d7da;border-color:var(--error);color:#721c24;}
+.message.success{background:#d4edda;border-color:var(--success);color:#155724;}
+.history-item{background:var(--bg-light);border-left:5px solid var(--primary);padding:18px 20px;margin-bottom:15px;border-radius:8px;transition:transform 0.2s;}
+.history-item:hover{transform:translateX(5px);box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;z-index:9999;}
+.loading-content{text-align:center;color:white;}
+.spinner{width:60px;height:60px;border:6px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:1.5em;font-weight:bold;}
+.preview-section{margin-top:25px;padding-top:25px;border-top:2px solid var(--border);}
+.preview-title{font-size:1.3em;font-weight:bold;color:var(--text-dark);margin-bottom:15px;}
+.table-preview{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.95em;overflow-x:auto;display:block;}
+.table-preview th,.table-preview td{border:1px solid var(--border);padding:10px;text-align:left;white-space:nowrap;}
+.table-preview th{background:#e9ecef;font-weight:bold;position:sticky;top:0;}
+.ng-cell{background:#ffe5e5;font-weight:bold;}
+.ok-cell{background:#d4edda;}
+.preview-note{color:#6c757d;font-size:0.95em;margin-top:10px;font-style:italic;}
+.stats-box{background:var(--bg-light);border:2px solid var(--border);border-radius:8px;padding:15px;margin:20px 0;display:flex;justify-content:space-around;flex-wrap:wrap;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
+.stat-item{text-align:center;padding:10px;min-width:120px;}
+.stat-number{font-size:2em;font-weight:bold;color:var(--primary);}
+.stat-label{font-size:1em;color:#6c757d;margin-top:5px;}
+@media(max-width:768px){:root{font-size:16px;}.section{padding:20px;}.btn{padding:14px;}.table-preview{font-size:0.75em;}.header h1{font-size:1.8em;}.stats-box{flex-direction:column;}.stat-item{border-bottom:1px solid var(--border);padding:15px;}.stat-item:last-child{border-bottom:none;}}
 </style>
 </head>
 <body>
+
 <div class="container">
   <div class="header">
     <h1>📦 CSVかんたん変換ツール</h1>
     <p>基幹システムCSVを宅配便用に変換します</p>
   </div>
 
+  <!-- 送り主情報入力 -->
   <div class="section">
-    <h2>CSVアップロード</h2>
-    <div class="file-input-wrapper" id="fileWrapper">
-      <input type="file" id="csvFile" accept=".csv">
-      <div>クリックまたはドラッグ＆ドロップでCSVを選択</div>
-      <div id="fileName"></div>
+    <h2>📮 送り主情報</h2>
+    <div class="form-group">
+      <label class="form-label">送り主氏名</label>
+      <input type="text" id="senderName">
+    </div>
+    <div class="form-group">
+      <label class="form-label">送り主郵便番号</label>
+      <input type="text" id="senderPostal">
+    </div>
+    <div class="form-group">
+      <label class="form-label">送り主住所</label>
+      <input type="text" id="senderAddress">
+    </div>
+    <div class="form-group">
+      <label class="form-label">送り主電話番号</label>
+      <input type="text" id="senderPhone">
     </div>
   </div>
 
+  <!-- CSV変換 -->
   <div class="section">
-    <h2>配送会社選択</h2>
-    <select id="courierSelect"></select>
-  </div>
+    <h2>🔄 CSV変換</h2>
+    <div id="message" class="message"></div>
 
-  <div class="section">
-    <button id="convertBtn" disabled>変換してプレビュー</button>
-    <button id="downloadBtn" style="display:none;">CSVをダウンロード</button>
-  </div>
+    <div class="form-group">
+      <label class="form-label">1️⃣ CSVファイルを選択</label>
+      <div class="file-input-wrapper" id="fileWrapper">
+        <input type="file" id="csvFile" accept=".csv">
+        <div class="file-icon">📄</div>
+        <div class="file-text">クリックしてファイルを選択</div>
+        <div class="file-subtext">または、ここにファイルをドラッグ＆ドロップ</div>
+        <div class="file-name" id="fileName"></div>
+      </div>
+    </div>
 
-  <div class="section" id="previewSection" style="display:none;">
-    <h2>プレビュー</h2>
-    <div id="previewContent"></div>
+    <div class="form-group">
+      <label class="form-label">2️⃣ 変換先の宅配会社を選択</label>
+      <select id="courierSelect"></select>
+    </div>
+
+    <div class="btn-group">
+      <button id="convertBtn" class="btn btn-primary" disabled>3️⃣ 変換してプレビュー</button>
+      <button id="downloadBtn" class="btn btn-secondary" style="display:none;">4️⃣ CSVをダウンロード</button>
+    </div>
+
+    <div id="previewSection" class="preview-section" style="display:none;">
+      <div class="preview-title">📊 変換結果プレビュー</div>
+      <div id="statsBox" class="stats-box"></div>
+      <div id="previewContent"></div>
+      <p class="preview-note">※プレビューは最初の5件です</p>
+    </div>
   </div>
 </div>
 
+<script src="./js/xlsx.full.min.js"></script>
 <script>
-// ==================== 設定 ====================
-const COURIER_NAMES = {Yamato:'ヤマト運輸',Sagawa:'佐川急便',JapanPost:'日本郵便'};
-let formats = {};
-let csvRows = [];
+// ============================
+// 設定
+// ============================
+const ADDRESS_LIMIT = {Yamato:{a1:35,a2:35}, Sagawa:{a1:40,a2:40}, JapanPost:{a1:50,a2:50}};
+const MAX_HISTORY = 50;
+const COURIER_NAMES = {'Yamato':'ヤマト運輸','Sagawa':'佐川急便','JapanPost':'日本郵便'};
+let formats = {}; // 各社JSON列定義
+let lastConvertedRows = [];
+let lastFileName = '';
 
-// ==================== CSVパース ====================
+// ============================
+// CSV処理・ヘルパー
+// ============================
 function parseCsv(text){
-  const rows = [], r = [], vbuf='', iq=false;
-  let rbuf=[], v='', inQuotes=false;
-  let vbuf2='', iq2=false;
+  const rows=[],r=[];
+  let vbuf='', iqbuf=false;
   for(let i=0;i<text.length;i++){
     const c=text[i], next=text[i+1];
-    if(c=='"'&&!iq2){iq2=true;continue;}
-    if(c=='"'&&iq2){if(next=='"'){vbuf2+='"';i++;} else {iq2=false;continue;}}
-    if(c==','&&!iq2){rbuf.push(vbuf2.trim());vbuf2='';continue;}
-    if((c=='\n'||c=='\r')&&!iq2){if(c=='\r'&&next=='\n') i++;rbuf.push(vbuf2.trim());if(rbuf.some(c=>c!=='')) rows.push(rbuf); rbuf=[]; vbuf2=''; continue;}
-    vbuf2+=c;
+    if(c=='"'&&!iqbuf){iqbuf=true;continue;}
+    if(c=='"'&&iqbuf){if(next=='"'){vbuf+='"';i++;} else {iqbuf=false;continue;}}
+    if(c==','&&!iqbuf){r.push(vbuf.trim());vbuf='';continue;}
+    if((c=='\n'||c=='\r')&&!iqbuf){
+      if(c=='\r'&&next=='\n') i++;
+      r.push(vbuf.trim());if(r.some(c=>c!=='')) rows.push(r); r=[]; vbuf=''; continue;
+    }
+    vbuf+=c;
   }
-  if(vbuf2||rbuf.length>0){rbuf.push(vbuf2.trim());if(rbuf.some(c=>c!=='')) rows.push(rbuf);}
+  if(vbuf||r.length>0){r.push(vbuf.trim());if(r.some(c=>c!=='')) rows.push(r);}
   return rows;
 }
-function escapeCsv(v){return (v.includes(',')||v.includes('"')||v.includes('\n'))?`"${v.replace(/"/g,'""')}"`:v;}
+function escapeCsv(v){if(typeof v!=='string') v=String(v);return (v.includes(',')||v.includes('"')||v.includes('\n'))?`"${v.replace(/"/g,'""')}"`:v;}
+function cleanCsvValue(v){return String(v).replace(/^="?/,'').replace(/"?$/,'');}
 function downloadCsv(rows,filename){const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n');const bom=new Uint8Array([0xEF,0xBB,0xBF]);const blob=new Blob([bom,csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);}
 
-// ==================== CSVアップロード ====================
-const fileInput = document.getElementById('csvFile');
-const fileNameDiv = document.getElementById('fileName');
-const convertBtn = document.getElementById('convertBtn');
-const downloadBtn = document.getElementById('downloadBtn');
-const previewContent = document.getElementById('previewContent');
-
-fileInput.addEventListener('change', e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  fileNameDiv.textContent = file.name;
-  const reader = new FileReader();
-  reader.onload = function(evt){
-    csvRows = parseCsv(evt.target.result);
-    convertBtn.disabled = false;
-  }
-  reader.readAsText(file,'UTF-8');
-});
-
-// ==================== 配送会社選択 ====================
+// ============================
+// 運送会社フォーマット読み込み
+// ============================
 async function loadFormats(){
   const carriers = ["yamato","sagawa","japanpost"];
+  for(const c of carriers){
+    try{
+      const res = await fetch(`./formats/${c}Format.json`);
+      if(!res.ok) throw new Error(`${c}Format.json 読み込み失敗`);
+      formats[c] = await res.json();
+    }catch(e){console.warn(e);formats[c]={company:c, displayName:c, columns:[]};}
+  }
   const select = document.getElementById('courierSelect');
-  carriers.forEach(c=>{
+  Object.keys(formats).forEach(key=>{
     const opt = document.createElement('option');
-    opt.value = c;
-    opt.textContent = COURIER_NAMES[c]||c;
+    opt.value = key;
+    opt.textContent = COURIER_NAMES[key] || formats[key].displayName;
     select.appendChild(opt);
   });
 }
-loadFormats();
 
-// ==================== プレビュー表示 ====================
-convertBtn.addEventListener('click',()=>{
-  if(csvRows.length===0) return;
-  const table = document.createElement('table');
-  table.className = 'table-preview';
-  const thead = document.createElement('thead');
-  const trh = document.createElement('tr');
-  csvRows[0].forEach(h=>{
-    const th = document.createElement('th');
-    th.textContent = h;
-    trh.appendChild(th);
+// ============================
+// 送り主情報保存
+// ============================
+const senderFields = ['senderName','senderPostal','senderAddress','senderPhone'];
+function loadSenderInfo(){
+  senderFields.forEach(id=>{
+    const el = document.getElementById(id);
+    el.value = localStorage.getItem(id) || '';
+    el.addEventListener('input',()=>localStorage.setItem(id, el.value));
   });
-  thead.appendChild(trh);
-  table.appendChild(thead);
-  const tbody = document.createElement('tbody');
-  const maxRows = Math.min(csvRows.length-1,5);
-  for(let i=1;i<=maxRows;i++){
-    const tr = document.createElement('tr');
-    csvRows[i].forEach(v=>{
-      const td = document.createElement('td');
-      td.textContent = v;
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  }
-  table.appendChild(tbody);
-  previewContent.innerHTML='';
-  previewContent.appendChild(table);
-  document.getElementById('previewSection').style.display='block';
-  downloadBtn.style.display='inline-block';
-});
+}
+function validateSenderInfo(){
+  const postal = document.getElementById('senderPostal').value.replace(/[-−\s]/g,'');
+  const phone  = document.getElementById('senderPhone').value.replace(/[-−\s()（）]/g,'');
+  const postalOK = /^\d{7}$/.test(postal);
+  const phoneOK  = /^\d{9,11}$/.test(phone);
+  return postalOK && phoneOK;
+}
 
-// ==================== CSVダウンロード ====================
-downloadBtn.addEventListener('click',()=>{
-  if(csvRows.length===0) return;
-  downloadCsv(csvRows,'converted.csv');
-});
+loadFormats();
+loadSenderInfo();
+
 </script>
+<script src="./js/main.js"></script>
 </body>
 </html>
