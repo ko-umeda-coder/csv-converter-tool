@@ -2,270 +2,147 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CSVかんたん変換ツール</title>
 <style>
-:root {
-  --primary: #0066cc;
-  --primary-hover: #0052a3;
-  --success: #28a745;
-  --error: #dc3545;
-  --warning: #ffc107;
-  --bg-light: #f8f9fa;
-  --border: #dee2e6;
-  --text-dark: #212529;
-  font-size: 18px;
-}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Meiryo','Yu Gothic',sans-serif;line-height:1.8;background:var(--bg-light);padding:20px;color:var(--text-dark);}
+/* 基本スタイル（省略可） */
+body{font-family:'Meiryo',sans-serif;padding:20px;background:#f8f9fa;}
 .container{max-width:900px;margin:0 auto;}
-.header{background:linear-gradient(135deg,var(--primary),#0080ff);color:white;padding:30px 25px;border-radius:12px;margin-bottom:30px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
-.header h1{font-size:2em;margin-bottom:10px;}
-.header p{font-size:1.1em;opacity:0.95;}
-.font-controls{background:white;padding:15px;border-radius:8px;margin-bottom:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
-.font-controls label{font-weight:bold;margin-right:15px;font-size:1.1em;}
-.font-btn{padding:10px 18px;margin:0 5px;border:2px solid var(--border);background:white;border-radius:6px;cursor:pointer;font-size:1em;font-weight:bold;transition:all 0.3s;}
-.font-btn:hover{background:var(--primary);color:white;border-color:var(--primary);}
-.font-btn.active{background:var(--primary);color:white;border-color:var(--primary);}
-.section{background:white;padding:30px;border-radius:12px;margin-bottom:25px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-.section h2{font-size:1.6em;color:var(--primary);margin-bottom:25px;padding-bottom:12px;border-bottom:3px solid var(--primary);}
-.help-box{background:#fff3cd;border-left:4px solid #ffc107;padding:15px;margin-bottom:20px;border-radius:6px;}
-.help-box h3{font-size:1.1em;color:#856404;margin-bottom:8px;}
-.help-box ul{margin-left:20px;color:#856404;}
-.help-box li{margin-bottom:5px;}
-.info-box{background:#d1ecf1;border-left:4px solid #0c5460;padding:15px;margin-bottom:20px;border-radius:6px;}
-.info-box h3{font-size:1.1em;color:#0c5460;margin-bottom:8px;}
-.info-box ul{margin-left:20px;color:#0c5460;font-size:0.95em;}
-.info-box li{margin-bottom:3px;}
-.form-group{margin-bottom:25px;}
-.form-label{display:block;font-size:1.2em;font-weight:bold;margin-bottom:12px;color:var(--text-dark);}
-.file-input-wrapper{position:relative;border:3px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;background:var(--bg-light);cursor:pointer;transition:all 0.3s;}
-.file-input-wrapper:hover{border-color:var(--primary);background:#e3f2fd;}
-.file-input-wrapper.has-file{border-color:var(--success);background:#d4edda;}
+.header{background:#0066cc;color:white;padding:20px;border-radius:12px;text-align:center;margin-bottom:20px;}
+.header h1{font-size:2em;}
+.section{background:white;padding:20px;border-radius:12px;margin-bottom:20px;}
+.file-input-wrapper{border:2px dashed #ccc;padding:40px;text-align:center;border-radius:8px;cursor:pointer;position:relative;}
 .file-input-wrapper input[type="file"]{position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;}
-.file-icon{font-size:3em;margin-bottom:10px;}
-.file-text{font-size:1.2em;font-weight:bold;color:var(--text-dark);}
-.file-subtext{font-size:1em;color:#6c757d;margin-top:8px;}
-.file-name{margin-top:15px;font-size:1.1em;color:var(--success);font-weight:bold;}
-select{width:100%;padding:16px;font-size:1.2em;border:2px solid var(--border);border-radius:8px;background:white;cursor:pointer;transition:border-color 0.3s;}
-select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,102,204,0.1);}
-.btn-group{display:flex;gap:15px;}
-.btn{width:100%;padding:18px;font-size:1.3em;font-weight:bold;border:none;border-radius:8px;cursor:pointer;transition:all 0.3s;min-height:60px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
-.btn-primary{background:var(--primary);color:white;}
-.btn-primary:hover:not(:disabled){background:var(--primary-hover);transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,0.2);}
-.btn-primary:disabled{background:#ccc;cursor:not-allowed;opacity:0.6;}
-.btn-secondary{background:#6c757d;color:white;}
-.btn-secondary:hover:not(:disabled){background:#5a6268;transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,0.2);}
-.btn-secondary:disabled{background:#ccc;cursor:not-allowed;opacity:0.6;}
-.message{display:none;padding:20px;margin:20px 0;border-radius:8px;font-size:1.2em;font-weight:bold;border-left:5px solid;}
-.message.error{background:#f8d7da;border-color:var(--error);color:#721c24;}
-.message.success{background:#d4edda;border-color:var(--success);color:#155724;}
-.message.warning{background:#fff3cd;border-color:#ffc107;color:#856404;}
-.history-item{background:var(--bg-light);border-left:5px solid var(--primary);padding:18px 20px;margin-bottom:15px;border-radius:8px;transition:transform 0.2s;}
-.history-item:hover{transform:translateX(5px);box-shadow:0 2px 4px rgba(0,0,0,0.1);}
-.history-date{font-size:1.15em;font-weight:bold;color:var(--primary);margin-bottom:8px;}
-.history-detail{font-size:1.05em;color:var(--text-dark);margin-bottom:5px;}
-.history-label{font-weight:bold;color:#6c757d;}
-.no-history{text-align:center;padding:40px;color:#6c757d;font-size:1.1em;}
-.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;z-index:9999;}
-.loading-content{text-align:center;color:white;}
-.spinner{width:60px;height:60px;border:6px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.loading-text{font-size:1.5em;font-weight:bold;}
-*:focus{outline:3px solid var(--primary);outline-offset:2px;}
-.preview-section{margin-top:25px;padding-top:25px;border-top:2px solid var(--border);}
-.preview-title{font-size:1.3em;font-weight:bold;color:var(--text-dark);margin-bottom:15px;}
-.table-preview{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.95em;overflow-x:auto;display:block;}
-.table-preview th,.table-preview td{border:1px solid var(--border);padding:10px;text-align:left;white-space:nowrap;}
-.table-preview th{background:#e9ecef;font-weight:bold;position:sticky;top:0;}
-.ng-cell{background:#ffe5e5;font-weight:bold;}
-.ok-cell{background:#d4edda;}
-.preview-note{color:#6c757d;font-size:0.95em;margin-top:10px;font-style:italic;}
-.stats-box{background:var(--bg-light);border:2px solid var(--border);border-radius:8px;padding:15px;margin:20px 0;display:flex;justify-content:space-around;flex-wrap:wrap;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
-.stat-item{text-align:center;padding:10px;min-width:120px;}
-.stat-number{font-size:2em;font-weight:bold;color:var(--primary);}
-.stat-label{font-size:1em;color:#6c757d;margin-top:5px;}
-@media(max-width:768px){:root{font-size:16px;}.section{padding:20px;}.btn{padding:14px;}.font-btn{margin:5px 2px;}.table-preview{font-size:0.75em;}.header h1{font-size:1.8em;}.stats-box{flex-direction:column;}.stat-item{border-bottom:1px solid var(--border);padding:15px;}.stat-item:last-child{border-bottom:none;}}
+.table-preview{width:100%;border-collapse:collapse;margin-top:15px;}
+.table-preview th,.table-preview td{border:1px solid #ccc;padding:8px;text-align:left;}
 </style>
 </head>
 <body>
-
 <div class="container">
-  <div class="header">
-    <h1>📦 CSVかんたん変換ツール</h1>
-    <p>基幹システムのCSVを宅配便用に変換します</p>
-  </div>
+  <div class="header">
+    <h1>📦 CSVかんたん変換ツール</h1>
+    <p>基幹システムCSVを宅配便用に変換します</p>
+  </div>
 
-  <div class="font-controls">
-    <label>文字サイズ：</label>
-    <button class="font-btn" data-size="16px">小</button>
-    <button class="font-btn active" data-size="18px">標準</button>
-    <button class="font-btn" data-size="22px">大</button>
-    <button class="font-btn" data-size="26px">特大</button>
-  </div>
+  <div class="section">
+    <h2>CSVアップロード</h2>
+    <div class="file-input-wrapper" id="fileWrapper">
+      <input type="file" id="csvFile" accept=".csv">
+      <div>クリックまたはドラッグ＆ドロップでCSVを選択</div>
+      <div id="fileName"></div>
+    </div>
+  </div>
 
-  <div class="section">
-    <h2>❓ 使い方</h2>
-    <div class="help-box">
-      <h3>📝 基幹システムCSVについて</h3>
-      <ul>
-        <li>必須の列：「<strong>住所</strong>」という列名が必要です</li>
-        <li>任意の列：「郵便番号」「電話」「メール」があればチェックします</li>
-        <li>例：氏名,住所,電話,メール,郵便番号 などの列があるCSVファイル</li>
-      </ul>
-    </div>
-  </div>
+  <div class="section">
+    <h2>配送会社選択</h2>
+    <select id="courierSelect"></select>
+  </div>
 
-  <div class="section">
-    <h2>🔄 CSV変換</h2>
-    <div id="message" class="message"></div>
-    
-    <div class="form-group">
-      <label class="form-label">1️⃣ CSVファイルを選択</label>
-      <div class="file-input-wrapper" id="fileWrapper">
-        <input type="file" id="csvFile" accept=".csv">
-        <div class="file-icon">📄</div>
-        <div class="file-text">クリックしてファイルを選択</div>
-        <div class="file-subtext">または、ここにファイルをドラッグ＆ドロップ</div>
-        <div class="file-name" id="fileName"></div>
-      </div>
-    </div>
+  <div class="section">
+    <button id="convertBtn" disabled>変換してプレビュー</button>
+    <button id="downloadBtn" style="display:none;">CSVをダウンロード</button>
+  </div>
 
-    <div class="form-group">
-      <label class="form-label">2️⃣ 変換先の宅配会社を選択</label>
-      <select id="courierSelect">
-        <option value="Yamato">ヤマト運輸</option>
-        <option value="Sagawa">佐川急便</option>
-        <option value="JapanPost">日本郵便</option>
-      </select>
-    </div>
-
-    <div class="btn-group">
-      <button id="convertBtn" class="btn btn-primary" disabled>
-        3️⃣ 変換してプレビュー
-      </button>
-      <button id="downloadBtn" class="btn btn-secondary" style="display:none;">
-        4️⃣ CSVをダウンロード
-      </button>
-    </div>
-
-    <div id="previewSection" class="preview-section" style="display:none;">
-      <div class="preview-title">📊 変換結果プレビュー</div>
-      <div id="statsBox" class="stats-box"></div>
-      <div id="previewContent"></div>
-      <p class="preview-note">※プレビューは最初の5件です</p>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>📜 変換履歴</h2>
-    <div id="historyList"></div>
-  </div>
-</div>
-
-<div id="loading" class="loading-overlay">
-  <div class="loading-content">
-    <div class="spinner"></div>
-    <div class="loading-text">処理中です...</div>
-  </div>
+  <div class="section" id="previewSection" style="display:none;">
+    <h2>プレビュー</h2>
+    <div id="previewContent"></div>
+  </div>
 </div>
 
 <script>
 // ==================== 設定 ====================
-const ADDRESS_LIMIT = {Yamato:{a1:35,a2:35},Sagawa:{a1:40,a2:40},JapanPost:{a1:50,a2:50}};
-const MAX_HISTORY = 50;
-const COURIER_NAMES = {'Yamato':'ヤマト運輸','Sagawa':'佐川急便','JapanPost':'日本郵便'};
+const COURIER_NAMES = {Yamato:'ヤマト運輸',Sagawa:'佐川急便',JapanPost:'日本郵便'};
+let formats = {};
+let csvRows = [];
 
-// 基幹システムの列名パターン
-const COLUMN_PATTERNS = {
-  postalCode: ['郵便番号', '郵便番号（半角英数）', 'postalCode', 'postal'],
-  address: ['住所', '住所（都道府県・建物名含む）', 'address', 'Address', '所在地'],
-  recipientName: ['氏名', 'お届け先の宛名', '宛名', 'name', 'recipientName'],
-  phone: ['電話番号', '電話', 'TEL', 'phone'],
-  email: ['メール', 'メールアドレス', 'メルアド', 'email']
-};
-
-let historyData = JSON.parse(localStorage.getItem('csvHistory') || '[]');
-let lastConvertedRows = [];
-let lastFileName = '';
-
-// ==================== 履歴管理 ====================
-function saveHistory(item){historyData.push(item);if(historyData.length>MAX_HISTORY) historyData.shift();localStorage.setItem('csvHistory',JSON.stringify(historyData));renderHistory();}
-function renderHistory(){
-  const div=document.getElementById('historyList'); div.innerHTML='';
-  if(historyData.length===0){div.innerHTML='<div class="no-history">まだ履歴がありません</div>';return;}
-  historyData.slice().reverse().forEach(h=>{
-    const el=document.createElement('div'); el.className='history-item';
-    el.innerHTML=`<div class="history-date">${new Date(h.date).toLocaleString('ja-JP')}</div>
-      <div class="history-detail"><span class="history-label">変換先:</span> ${COURIER_NAMES[h.courier]||h.courier}</div>
-      <div class="history-detail"><span class="history-label">変換件数:</span> ${h.count}件</div>
-      <div class="history-detail"><span class="history-label">エラー件数:</span> ${h.ngCount}件</div>
-      <div class="history-detail"><span class="history-label">ファイル名:</span> ${h.fileName}</div>`;
-    div.appendChild(el);
-  });
-}
-
-// ==================== CSV処理 ====================
+// ==================== CSVパース ====================
 function parseCsv(text){
-  const rows=[],row=[],value='',inQuotes=false;
-  let r=[],v='',iq=false;
-  for(let i=0;i<text.length;i++){
-    const c=text[i],next=text[i+1];
-    if(c=='"'&&!iq){iq=true;continue;}
-    if(c=='"'&&iq){if(next=='"'){v+='"';i++;}else{iq=false;continue;}}
-    if(c==','&&!iq){r.push(v.trim());v='';continue;}
-    if((c=='\n'||c=='\r')&&!iq){if(c=='\r'&&next=='\n') i++;r.push(v.trim());if(r.some(c=>c!==''))
-      rows.push(r);r=[];v='';continue;}v+=c;
-  }
-  if(v||r.length>0){r.push(v.trim());if(r.some(c=>c!=='')) rows.push(r);}
-  return rows;
+  const rows = [], r = [], vbuf='', iq=false;
+  let rbuf=[], v='', inQuotes=false;
+  let vbuf2='', iq2=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], next=text[i+1];
+    if(c=='"'&&!iq2){iq2=true;continue;}
+    if(c=='"'&&iq2){if(next=='"'){vbuf2+='"';i++;} else {iq2=false;continue;}}
+    if(c==','&&!iq2){rbuf.push(vbuf2.trim());vbuf2='';continue;}
+    if((c=='\n'||c=='\r')&&!iq2){if(c=='\r'&&next=='\n') i++;rbuf.push(vbuf2.trim());if(rbuf.some(c=>c!=='')) rows.push(rbuf); rbuf=[]; vbuf2=''; continue;}
+    vbuf2+=c;
+  }
+  if(vbuf2||rbuf.length>0){rbuf.push(vbuf2.trim());if(rbuf.some(c=>c!=='')) rows.push(rbuf);}
+  return rows;
 }
-
-function escapeCsv(v){if(typeof v!=='string') v=String(v);return (v.includes(',')||v.includes('"')||v.includes('\n'))?`"${v.replace(/"/g,'""')}"`:v;}
+function escapeCsv(v){return (v.includes(',')||v.includes('"')||v.includes('\n'))?`"${v.replace(/"/g,'""')}"`:v;}
 function downloadCsv(rows,filename){const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n');const bom=new Uint8Array([0xEF,0xBB,0xBF]);const blob=new Blob([bom,csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);}
 
-// ==================== バリデーション ====================
-function findColumnIndex(header,patterns){for(let i=0;i<header.length;i++){const col=header[i].trim();for(const p of patterns){if(col===p||col.includes(p)){return i;}}}return -1;}
-function findColumns(header){return{
-  postalCode:findColumnIndex(header,COLUMN_PATTERNS.postalCode),
-  address:findColumnIndex(header,COLUMN_PATTERNS.address),
-  recipientName:findColumnIndex(header,COLUMN_PATTERNS.recipientName),
-  phone:findColumnIndex(header,COLUMN_PATTERNS.phone),
-  email:findColumnIndex(header,COLUMN_PATTERNS.email)
-};}
-function checkPostalCode(postal){if(!postal)return'NG';const p=postal.replace(/[-−]/g,'');return/^\d{7}$/.test(p)?'OK':'NG';}
-function checkPhone(p){if(!p)return'NG';const x=p.replace(/[-−\s()（）]/g,'');return(/^\d{9,11}$/.test(x))?'OK':'NG';}
-function checkEmail(e){if(!e)return'NG';return(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))?'OK':'NG';}
+// ==================== CSVアップロード ====================
+const fileInput = document.getElementById('csvFile');
+const fileNameDiv = document.getElementById('fileName');
+const convertBtn = document.getElementById('convertBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const previewContent = document.getElementById('previewContent');
 
-// ==================== 住所分割 ====================
-function splitAddress(address,courier){if(!address)return['',''];const lim=ADDRESS_LIMIT[courier]||{a1:35,a2:35};if(address.length<=lim.a1)return[address,''];const sub=address.substring(0,lim.a1);const matches=[...sub.matchAll(/[\s\-−　ー、。]/g)];if(matches.length>0){const last=matches[matches.length-1];const splitPoint=last.index+1;if(splitPoint>lim.a1/2){return[address.substring(0,splitPoint).trim(),address.substring(splitPoint).trim()];}}return[address.substring(0,lim.a1).trim(),address.substring(lim.a1).trim()];}
+fileInput.addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  fileNameDiv.textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    csvRows = parseCsv(evt.target.result);
+    convertBtn.disabled = false;
+  }
+  reader.readAsText(file,'UTF-8');
+});
 
-// ==================== プレビュー ====================
-function renderPreview(rows,courier,columns){
-  const previewDiv=document.getElementById('previewContent'); const previewSection=document.getElementById('previewSection');
-  const statsBox=document.getElementById('statsBox');
-  previewDiv.innerHTML=''; previewSection.style.display='block';
-  const table=document.createElement('table');table.className='table-preview';
-  const thead=document.createElement('thead');const trh=document.createElement('tr');
-  ['チェック結果',...rows[0]].forEach(h=>{const th=document.createElement('th');th.textContent=h;trh.appendChild(th);});
-  thead.appendChild(trh);table.appendChild(thead);
-  const tbody=document.createElement('tbody'); let totalNg=0; const maxRows=Math.min(rows.length-1,5);
-  for(let i=1;i<=maxRows;i++){
-    const row=rows[i];const tr=document.createElement('tr'); let rowNg=false;
-    const tdStatus=document.createElement('td');
-    rows[0].forEach((h,j)=>{const td=document.createElement('td');td.textContent=row[j];tr.appendChild(td);});
-    const postalStatus=checkPostalCode(row[columns.postalCode]);
-    const phoneStatus=checkPhone(row[columns.phone]);
-    const emailStatus=checkEmail(row[columns.email]);
-    const [a1,a2]=splitAddress(row[columns.address]||'',courier);
-    if(postalStatus==='NG'||phoneStatus==='NG'||emailStatus==='NG'||a2!==''){rowNg=true;totalNg++;}
-    tdStatus.textContent=rowNg?'⚠️NG':'✅OK';tdStatus.className=rowNg?'ng-cell':'ok-cell';
-    tr.prepend(tdStatus);
-    tbody.appendChild(tr);
-  }
-  table.appendChild(tbody);previewDiv.appendChild(table);
-  return totalNg;
+// ==================== 配送会社選択 ====================
+async function loadFormats(){
+  const carriers = ["yamato","sagawa","japanpost"];
+  const select = document.getElementById('courierSelect');
+  carriers.forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = COURIER_NAMES[c]||c;
+    select.appendChild(opt);
+  });
 }
+loadFormats();
+
+// ==================== プレビュー表示 ====================
+convertBtn.addEventListener('click',()=>{
+  if(csvRows.length===0) return;
+  const table = document.createElement('table');
+  table.className = 'table-preview';
+  const thead = document.createElement('thead');
+  const trh = document.createElement('tr');
+  csvRows[0].forEach(h=>{
+    const th = document.createElement('th');
+    th.textContent = h;
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  const maxRows = Math.min(csvRows.length-1,5);
+  for(let i=1;i<=maxRows;i++){
+    const tr = document.createElement('tr');
+    csvRows[i].forEach(v=>{
+      const td = document.createElement('td');
+      td.textContent = v;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  previewContent.innerHTML='';
+  previewContent.appendChild(table);
+  document.getElementById('previewSection').style.display='block';
+  downloadBtn.style.display='inline-block';
+});
+
+// ==================== CSVダウンロード ====================
+downloadBtn.addEventListener('click',()=>{
+  if(csvRows.length===0) return;
+  downloadCsv(csvRows,'converted.csv');
+});
 </script>
 </body>
 </html>
