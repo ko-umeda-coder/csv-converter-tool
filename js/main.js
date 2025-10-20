@@ -149,18 +149,25 @@ const waitForXLSX = () => new Promise(resolve => {
   // ============================
   // 外部マッピング読込
   // ============================
-  async function loadMapping() {
-    const res = await fetch("./js/ヤマト.xlsx");
-    const buf = await res.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+// ============================
+// 外部マッピング読込（A=出力列, B=参照元/固定値, C=備考）
+// ============================
+async function loadMapping() {
+  const res = await fetch("./js/ヤマト.xlsx");
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-    mapping = {};
-    data.forEach((row, i) => {
-      if (!row[0] || i === 0) return;
-      mapping[row[0]] = { source: row[1] || "", rule: row[2] || "" };
-    });
+  mapping = {};
+  data.forEach((row, i) => {
+    if (!row[0] || i === 0) return; // ヘッダー・空行スキップ
+    mapping[row[0]] = { source: row[1] || "" }; // ✅ B列のみ使用
+  });
+
+  console.log("✅ マッピング読込完了:", mapping);
+}
+
 
     console.log("✅ マッピング読込完了:", mapping);
   }
