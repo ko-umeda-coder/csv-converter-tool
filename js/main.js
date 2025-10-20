@@ -39,17 +39,34 @@ const waitForXLSX = () => new Promise(resolve => {
   setupConvertButton();
   setupDownloadButton();
 
-  // ============================
-  // 宅配会社リスト
-  // ============================
-  function setupCourierOptions() {
-    const options = [
-      { value: "yamato", text: "ヤマト運輸" },
-      { value: "sagawa", text: "佐川急便（今後対応予定）" },
-      { value: "japanpost", text: "日本郵政（今後対応予定）" },
-    ];
-    courierSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join("");
-  }
+// ============================
+// 宅配会社リスト（選択可能化対応）
+// ============================
+function setupCourierOptions() {
+  const options = [
+    { value: "", text: "選択してください" },
+    { value: "yamato", text: "ヤマト運輸" },
+    { value: "sagawa", text: "佐川急便（今後対応予定）" },
+    { value: "japanpost", text: "日本郵政（今後対応予定）" },
+  ];
+  
+  courierSelect.innerHTML = options
+    .map(o => `<option value="${o.value}">${o.text}</option>`)
+    .join("");
+
+  courierSelect.disabled = false; // ✅ 明示的に有効化
+  courierSelect.value = "";       // ✅ 初期値リセット
+
+  courierSelect.addEventListener("change", () => {
+    if (courierSelect.value) {
+      console.log("📦 選択された宅配会社:", courierSelect.value);
+      convertBtn.disabled = fileInput.files.length === 0;
+    } else {
+      convertBtn.disabled = true;
+    }
+  });
+}
+
 
   // ============================
   // ファイル選択
