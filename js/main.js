@@ -1,20 +1,81 @@
-console.log("main.js ロード完了");
+// ============================
+// main.js : CSV変換メイン処理
+// ============================
 
-// ユーザー画面簡易処理
-document.getElementById('convertBtn')?.addEventListener('click', ()=>{
-  const file = document.getElementById('csvFile').files[0];
-  const courier = document.getElementById('courierSelect').value;
-  if(!file){ alert("CSVを選択してください"); return; }
-  alert(`CSVを読み込み、配送会社:${courier} で変換（最小構成）`);
-  document.getElementById('preview').textContent = `CSVプレビュー（最小構成）: ${file.name}`;
+// ----------------------------
+// グローバル変数
+// ----------------------------
+const fileInput = document.getElementById('csvFile');
+const fileWrapper = document.getElementById('fileWrapper');
+const fileName = document.getElementById('fileName');
+const convertBtn = document.getElementById('convertBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const messageBox = document.getElementById('message');
+const courierSelect = document.getElementById('courierSelect');
+const previewSection = document.getElementById('previewSection');
+const previewContent = document.getElementById('previewContent');
+const statsBox = document.getElementById('statsBox');
+
+let convertedRows = [];
+let originalFileName = "";
+
+// ----------------------------
+// 初期化
+// ----------------------------
+document.addEventListener("DOMContentLoaded", () => {
+  setupFileInput();
+  setupConvertButton();
+  setupDownloadButton();
 });
 
-// 管理者画面簡易処理
-document.getElementById('updateFormatBtn')?.addEventListener('click', ()=>{
-  const file = document.getElementById('adminFile').files[0];
-  const courier = document.getElementById('adminCourierSelect').value;
-  if(!file){ alert("CSV/Excelを選択してください"); return; }
-  alert(`管理者モード：${courier} のフォーマットを更新（最小構成）`);
-  document.getElementById('adminPreview').textContent = `読み込んだファイル: ${file.name}`;
-});
+// ----------------------------
+// ファイル選択イベント
+// ----------------------------
+function setupFileInput() {
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      originalFileName = file.name;
+      fileName.textContent = file.name;
+      fileWrapper.classList.add("has-file");
+      convertBtn.disabled = false;
+    } else {
+      fileName.textContent = "";
+      fileWrapper.classList.remove("has-file");
+      convertBtn.disabled = true;
+    }
+  });
 
+  // ドラッグ＆ドロップ対応
+  fileWrapper.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    fileWrapper.style.borderColor = "var(--primary)";
+  });
+  fileWrapper.addEventListener("dragleave", () => {
+    fileWrapper.style.borderColor = "var(--border)";
+  });
+  fileWrapper.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith(".csv")) {
+      fileInput.files = e.dataTransfer.files;
+      const event = new Event("change");
+      fileInput.dispatchEvent(event);
+    }
+  });
+}
+
+// ----------------------------
+// 変換ボタン押下イベント
+// ----------------------------
+function setupConvertButton() {
+  convertBtn.addEventListener("click", async () => {
+    const file = fileInput.files[0];
+    const courier = courierSelect.value;
+    if (!file || !courier) return;
+
+    showMessage("変換中です...", "info");
+    showLoading(true);
+
+    try {
+      const text = await file.text();
