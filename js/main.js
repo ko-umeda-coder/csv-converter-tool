@@ -185,8 +185,8 @@ const waitForXLSX = () => new Promise(resolve => {
     return wb;
   }
 
- // ============================
-// ゆうプリR変換処理（ずれ修正版）
+// ============================
+// ゆうプリR変換処理（列シフト＋ヘッダ削除版）
 // ============================
 async function convertToJapanPost(csvFile, sender) {
   const text = await csvFile.text();
@@ -206,7 +206,7 @@ async function convertToJapanPost(csvFile, sender) {
     headers.push(cell ? String(cell.v).trim() : "");
   }
 
-  const dataRows = rows.slice(1);
+  const dataRows = rows.slice(1); // 1行目除外（ヘッダ不要）
   const output = [];
 
   for (const r of dataRows) {
@@ -220,30 +220,30 @@ async function convertToJapanPost(csvFile, sender) {
     // ヘッダ数に合わせて空白で初期化
     const rowOut = new Array(headers.length).fill("");
 
-    // ===== 列ずれ修正（1つ左へ） =====
-    rowOut[7]  = name;                         // H列：氏名
-    rowOut[10] = postal;                       // K列：郵便番号
-    rowOut[11] = addrParts.pref;               // L列：都道府県
-    rowOut[12] = addrParts.city;               // M列：市区町村
-    rowOut[13] = addrParts.rest;               // N列：番地・建物
-    rowOut[15] = phone;                        // P列：電話番号
-    rowOut[22] = sender.name;                  // W列：送り主名
-    rowOut[30] = cleanTelPostal(sender.phone); // AE列：送り主電話
-    rowOut[34] = "ブーケフレーム加工品";       // AI列：固定値
-    rowOut[49] = orderNumber;                  // AX列：注文番号
+    // --- 全項目を1列左へシフト ---
+    rowOut[6]  = name;                         // G列(実質H列位置)：氏名
+    rowOut[9]  = postal;                       // J列(実質K列位置)：郵便番号
+    rowOut[10] = addrParts.pref;               // K列：都道府県
+    rowOut[11] = addrParts.city;               // L列：市区町村
+    rowOut[12] = addrParts.rest;               // M列：番地・建物
+    rowOut[14] = phone;                        // O列：電話番号
+    rowOut[21] = sender.name;                  // V列：送り主名
+    rowOut[29] = cleanTelPostal(sender.phone); // AD列：送り主電話
+    rowOut[33] = "ブーケフレーム加工品";       // AH列：固定値
+    rowOut[48] = orderNumber;                  // AW列：注文番号
 
     output.push(rowOut);
   }
 
-  // CSV生成（空白維持・不要列削除なし）
-  const csvText = [
-    headers.map(h => `"${h || ""}"`).join(","),
-    ...output.map(row => row.map(v => `"${v || ""}"`).join(","))
-  ].join("\r\n");
+  // --- ヘッダ行を含めずに出力 ---
+  const csvText = output.map(row =>
+    row.map(v => `"${v || ""}"`).join(",")
+  ).join("\r\n");
 
   const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
   return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
 }
+
 
 
   // ============================
