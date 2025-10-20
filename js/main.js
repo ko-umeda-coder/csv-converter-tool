@@ -39,34 +39,29 @@ const waitForXLSX = () => new Promise(resolve => {
   setupConvertButton();
   setupDownloadButton();
 
-// ============================
-// 宅配会社リスト（選択可能化対応）
-// ============================
-function setupCourierOptions() {
-  const options = [
-    { value: "", text: "選択してください" },
-    { value: "yamato", text: "ヤマト運輸" },
-    { value: "sagawa", text: "佐川急便（今後対応予定）" },
-    { value: "japanpost", text: "日本郵政（今後対応予定）" },
-  ];
-  
-  courierSelect.innerHTML = options
-    .map(o => `<option value="${o.value}">${o.text}</option>`)
-    .join("");
+  // ============================
+  // 宅配会社リスト
+  // ============================
+  function setupCourierOptions() {
+    const options = [
+      { value: "", text: "選択してください" },
+      { value: "yamato", text: "ヤマト運輸" },
+      { value: "japanpost", text: "日本郵政（ゆうプリR）" },
+      { value: "sagawa", text: "佐川急便（今後対応予定）" },
+    ];
+    courierSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join("");
+    courierSelect.disabled = false;
+    courierSelect.value = "";
 
-  courierSelect.disabled = false; // ✅ 明示的に有効化
-  courierSelect.value = "";       // ✅ 初期値リセット
-
-  courierSelect.addEventListener("change", () => {
-    if (courierSelect.value) {
-      console.log("📦 選択された宅配会社:", courierSelect.value);
-      convertBtn.disabled = fileInput.files.length === 0;
-    } else {
-      convertBtn.disabled = true;
-    }
-  });
-}
-
+    courierSelect.addEventListener("change", () => {
+      if (courierSelect.value) {
+        console.log("📦 選択された宅配会社:", courierSelect.value);
+        convertBtn.disabled = fileInput.files.length === 0;
+      } else {
+        convertBtn.disabled = true;
+      }
+    });
+  }
 
   // ============================
   // ファイル選択
@@ -137,8 +132,8 @@ function setupCourierOptions() {
   function cleanOrderNumber(value) {
     if (!value) return "";
     return String(value)
-      .replace(/^(FAX|EC)/i, "") // ✅ FAX・EC削除
-      .replace(/[★\[\]\s]/g, "") // ✅ 記号削除
+      .replace(/^(FAX|EC)/i, "")
+      .replace(/[★\[\]\s]/g, "")
       .trim();
   }
 
@@ -147,7 +142,7 @@ function setupCourierOptions() {
   // ============================
   function splitAddress(address) {
     if (!address) return { pref: "", city: "", rest: "" };
-    const prefectures = [
+    const prefList = [
       "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
       "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
       "新潟県","富山県","石川県","福井県","山梨県","長野県",
@@ -157,17 +152,17 @@ function setupCourierOptions() {
       "徳島県","香川県","愛媛県","高知県",
       "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
     ];
-    const pref = prefectures.find(p => address.startsWith(p)) || "";
+    const pref = prefList.find(p => address.startsWith(p)) || "";
     const rest = pref ? address.replace(pref, "") : address;
     const [city, ...restParts] = rest.split(/(?<=市|区|町|村)/);
     return { pref, city, rest: restParts.join("") };
   }
 
   // ============================
-  // 外部マッピング読込（A=出力列, B=参照元/固定値, C=備考）
+  // 外部マッピング読込（F=参照元, G=備考）
   // ============================
-  async function loadMapping() {
-    const res = await fetch("./js/ヤマト.xlsx");
+  async function loadMappingJapanPost() {
+    const res = await fetch("./js/ゆうプリR_外部データ取込基本レイアウト.xlsx");
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array" });
     const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -175,46 +170,39 @@ function setupCourierOptions() {
 
     mapping = {};
     data.forEach((row, i) => {
-      if (!row[0] || i === 0) return; // ヘッダー・空行スキップ
-      mapping[row[0]] = { source: row[1] || "" }; // ✅ B列のみ使用
+      if (!row[0] || i === 0) return;
+      mapping[row[0]] = { source: row[5] || "" }; // ✅ F列参照（index 5）
     });
 
-    console.log("✅ マッピング読込完了:", mapping);
+    console.log("✅ 日本郵政マッピング読込完了:", mapping);
   }
 
   // ============================
-  // 値取得ロジック
+  // 値取得ロジック（共通）
   // ============================
   function getValueFromRule(rule, csvRow, sender) {
     if (!rule) return "";
-
-    // 固定値 or 0
     if (rule.startsWith("固定値")) return rule.replace("固定値", "").trim();
-    if (/^\d+$/.test(rule)) return rule; // 0などの数値もOK
-
+    if (/^\d+$/.test(rule)) return rule;
     if (rule === "TODAY") {
       const d = new Date();
       return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
     }
-
-    if (rule.startsWith("sender")) {
-      return sender[rule.replace("sender", "").toLowerCase()] || "";
-    }
+    if (rule.startsWith("sender")) return sender[rule.replace("sender", "").toLowerCase()] || "";
 
     const match = rule.match(/CSV\s*([A-Z]+)列/);
     if (match) {
       const idx = match[1].charCodeAt(0) - 65;
       return csvRow[idx] || "";
     }
-
     return rule;
   }
 
   // ============================
-  // ヤマト変換処理
+  // 日本郵政（ゆうプリR）変換処理
   // ============================
-  async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
-    await loadMapping();
+  async function mergeToJapanpostTemplate(csvFile, templateUrl, sender) {
+    await loadMappingJapanPost();
 
     const csvText = await csvFile.text();
     const rows = csvText.trim().split(/\r?\n/).map(line => line.split(","));
@@ -223,34 +211,14 @@ function setupCourierOptions() {
     const res = await fetch(templateUrl);
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array" });
-    const sheet = wb.Sheets["外部データ取り込み基本レイアウト"];
+    const sheet = wb.Sheets[wb.SheetNames[0]];
 
     let rowExcel = 2;
     for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[1]);
-      const postal = cleanTelPostal(r[11]);
-      const addressFull = r[12] || "";
-      const name = r[13] || "";
-      const phone = cleanTelPostal(r[14]);
-      const senderAddrParts = splitAddress(sender.address);
-
-      // 固定値
-      sheet[`B${rowExcel}`] = { v: "0", t: "s" }; // 送り状種類 固定値0
-      sheet[`C${rowExcel}`] = { v: "0", t: "s" }; // クール区分 固定値0
-
-      // 通常項目
-      sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
-      sheet[`E${rowExcel}`] = { v: getValueFromRule("TODAY"), t: "s" };
-      sheet[`I${rowExcel}`] = { v: phone, t: "s" };
-      sheet[`K${rowExcel}`] = { v: postal, t: "s" };
-      sheet[`L${rowExcel}`] = { v: addressFull, t: "s" };
-      sheet[`P${rowExcel}`] = { v: name, t: "s" };
-      sheet[`Y${rowExcel}`] = { v: sender.name, t: "s" };
-      sheet[`T${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
-      sheet[`V${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
-      sheet[`W${rowExcel}`] = { v: `${senderAddrParts.pref}${senderAddrParts.city}${senderAddrParts.rest}`, t: "s" };
-      sheet[`AB${rowExcel}`] = { v: "ブーケフレーム加工品", t: "s" };
-
+      for (const [col, def] of Object.entries(mapping)) {
+        const value = getValueFromRule(def.source, r, sender);
+        sheet[`${col}${rowExcel}`] = { v: value, t: "s" };
+      }
       rowExcel++;
     }
 
@@ -264,17 +232,27 @@ function setupCourierOptions() {
     convertBtn.addEventListener("click", async () => {
       const file = fileInput.files[0];
       const courier = courierSelect.value;
-      if (!file || courier !== "yamato") {
-        showMessage("ヤマト運輸のみ対応しています。", "error");
+      if (!file || !courier) {
+        showMessage("宅配会社を選択してください。", "error");
         return;
       }
 
       showLoading(true);
-      showMessage("ヤマトテンプレートに転記中...", "info");
+      showMessage("変換中...", "info");
 
       try {
         const sender = getSenderInfo();
-        mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
+
+        if (courier === "yamato") {
+          mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
+        } else if (courier === "japanpost") {
+          mergedWorkbook = await mergeToJapanpostTemplate(file, "./js/ゆうプリR_外部データ取込基本レイアウト.xlsx", sender);
+        } else {
+          showMessage("現在対応しているのはヤマト運輸・日本郵政のみです。", "error");
+          showLoading(false);
+          return;
+        }
+
         showMessage("✅ 変換完了。ダウンロードできます。", "success");
         downloadBtn.style.display = "block";
         downloadBtn.disabled = false;
@@ -294,7 +272,10 @@ function setupCourierOptions() {
         alert("変換データがありません。");
         return;
       }
-      XLSX.writeFile(mergedWorkbook, "yamato_b2_import.xlsx");
+
+      const courier = courierSelect.value;
+      const fileName = courier === "japanpost" ? "japanpost_import.xlsx" : "yamato_b2_import.xlsx";
+      XLSX.writeFile(mergedWorkbook, fileName);
     });
   }
 })();
