@@ -172,31 +172,47 @@ const waitForXLSX = () => new Promise(resolve => {
   // ============================
   // ヤマト変換処理
   // ============================
-  async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
-    await loadMapping();
+  // ...省略（前半は同じ）
 
-    const csvText = await csvFile.text();
-    const rows = csvText.trim().split(/\r?\n/).map(line => line.split(","));
-    const dataRows = rows.slice(1);
+async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
+  await loadMapping();
 
-    const res = await fetch(templateUrl);
-    const buf = await res.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-    const sheet = wb.Sheets["外部データ取り込み基本レイアウト"];
+  const csvText = await csvFile.text();
+  const rows = csvText.trim().split(/\r?\n/).map(line => line.split(","));
+  const dataRows = rows.slice(1);
 
-    let rowExcel = 2;
-    for (const r of dataRows) {
-      for (const [yamatoCol, def] of Object.entries(mapping)) {
-        const value = getValueFromRule(def.source || def.rule, r, sender);
-        const cellRef = yamatoCol + rowExcel;
-        const cleaned = /電話|郵便番号/.test(yamatoCol) ? cleanTelPostal(value) : value;
-        sheet[cellRef] = { v: cleaned, t: "s" };
-      }
-      rowExcel++;
-    }
+  const res = await fetch(templateUrl);
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+  const sheet = wb.Sheets["外部データ取り込み基本レイアウト"];
 
-    return wb;
+  let rowExcel = 2;
+  for (const r of dataRows) {
+    const orderNumber = r[1] || "";
+    const postal = cleanTelPostal(r[10]);
+    const addressFull = r[11] || "";
+    const name = r[12] || "";  // ✅ M列（お届け先氏名）
+    const phone = cleanTelPostal(r[13]); // ✅ N列（電話番号）
+    const senderAddrParts = splitAddress(sender.address);
+
+    // 出力
+    sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
+    sheet[`I${rowExcel}`] = { v: phone, t: "s" };            // ✅ N列参照
+    sheet[`K${rowExcel}`] = { v: postal, t: "s" };
+    sheet[`L${rowExcel}`] = { v: addressFull, t: "s" };
+    sheet[`P${rowExcel}`] = { v: name, t: "s" };              // ✅ M列参照
+    sheet[`Y${rowExcel}`] = { v: sender.name, t: "s" };
+    sheet[`T${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
+    sheet[`V${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
+    sheet[`W${rowExcel}`] = { v: `${senderAddrParts.pref}${senderAddrParts.city}${senderAddrParts.rest}`, t: "s" };
+    sheet[`AB${rowExcel}`] = { v: "ブーケフレーム加工品", t: "s" };
+
+    rowExcel++;
   }
+
+  return wb;
+}
+
 
   // ============================
   // ボタン処理
