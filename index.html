@@ -172,10 +172,16 @@ select:focus, input[type=text]:focus {
       </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">2️⃣ 変換先の宅配会社を選択</label>
-      <select id="courierSelect"></select>
-    </div>
+<div class="form-group">
+  <label class="form-label">2️⃣ 変換先の宅配会社を選択</label>
+  <select id="courierSelect">
+    <option value="">選択してください</option>
+    <option value="yamato">ヤマト運輸</option>
+    <option value="japanpost">日本郵政（ゆうプリR）</option>
+    <option value="sagawa">佐川急便（今後対応予定）</option>
+  </select>
+</div>
+
 
     <div class="btn-group">
       <button id="convertBtn" class="btn btn-primary" disabled>3️⃣ テンプレートに転記</button>
@@ -195,3 +201,4 @@ select:focus, input[type=text]:focus {
 
 </body>
 </html>
+
