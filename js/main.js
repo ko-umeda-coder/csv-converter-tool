@@ -100,6 +100,8 @@ function setupConvertButton() {
       showStats(rows.length - 1, converted.length - 1);
       showMessage("変換が完了しました！", "success");
       downloadBtn.style.display = "block";
+      downloadBtn.disabled = false;
+
     } catch (err) {
       console.error(err);
       showMessage("変換中にエラーが発生しました。", "error");
