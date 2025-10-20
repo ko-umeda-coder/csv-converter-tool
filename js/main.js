@@ -14,15 +14,12 @@ const waitForXLSX = () => new Promise(resolve => {
 });
 
 // ============================
-// main.js本体を安全に実行
+// main.js本体
 // ============================
 (async () => {
   await waitForXLSX();
   console.log("✅ main.js 初期化開始");
 
-  // ============================
-  // DOM要素取得
-  // ============================
   const fileInput = document.getElementById("csvFile");
   const fileWrapper = document.getElementById("fileWrapper");
   const fileName = document.getElementById("fileName");
@@ -32,11 +29,7 @@ const waitForXLSX = () => new Promise(resolve => {
   const courierSelect = document.getElementById("courierSelect");
 
   let mergedWorkbook = null;
-  let originalFileName = "";
 
-  // ============================
-  // 初期設定
-  // ============================
   setupCourierOptions();
   setupFileInput();
   setupConvertButton();
@@ -51,15 +44,10 @@ const waitForXLSX = () => new Promise(resolve => {
     courierSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join("");
   }
 
-  // ============================
-  // ファイル選択
-  // ============================
   function setupFileInput() {
     fileInput.addEventListener("change", () => {
       if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        originalFileName = file.name;
-        fileName.textContent = file.name;
+        fileName.textContent = fileInput.files[0].name;
         fileWrapper.classList.add("has-file");
         convertBtn.disabled = false;
       } else {
@@ -70,33 +58,24 @@ const waitForXLSX = () => new Promise(resolve => {
     });
   }
 
-  // ============================
-  // メッセージ表示
-  // ============================
   function showMessage(text, type = "info") {
     messageBox.style.display = "block";
     messageBox.textContent = text;
     messageBox.className = "message " + type;
   }
 
-  // ============================
-  // ローディング表示
-  // ============================
   function showLoading(show) {
     let overlay = document.getElementById("loading");
     if (!overlay) {
       overlay = document.createElement("div");
       overlay.id = "loading";
       overlay.className = "loading-overlay";
-      overlay.innerHTML = `<div class="loading-content"><div class="spinner"></div><div class="loading-text">処理中です...</div></div>`;
+      overlay.innerHTML = `<div class="loading-content"><div class="spinner"></div><div class="loading-text">変換中...</div></div>`;
       document.body.appendChild(overlay);
     }
     overlay.style.display = show ? "flex" : "none";
   }
 
-  // ============================
-  // 送り主情報取得
-  // ============================
   function getSenderInfo() {
     return {
       name: document.getElementById("senderName").value.trim(),
@@ -106,53 +85,43 @@ const waitForXLSX = () => new Promise(resolve => {
     };
   }
 
-  // ============================
-  // クレンジング関数群
-  // ============================
+  // ========== クレンジング関数 ==========
   function cleanTelPostal(value) {
     if (!value) return "";
     return String(value)
-      .replace(/^="?/, "")   // =" の除去
-      .replace(/"$/, "")     // 末尾の " の除去
-      .replace(/[^0-9\-]/g, "") // 数字とハイフン以外削除
+      .replace(/^="?/, "")
+      .replace(/"$/, "")
+      .replace(/[^0-9\-]/g, "")
       .trim();
   }
 
   function cleanOrderNumber(value) {
     if (!value) return "";
     return String(value)
-      .replace(/^FAX/i, "")       // "FAX"除去
-      .replace(/[★\[\]\s]/g, "")  // 特殊文字削除
+      .replace(/^FAX/i, "")
+      .replace(/[★\[\]\s]/g, "")
       .trim();
   }
 
   function splitAddress(address) {
     if (!address) return { pref: "", city: "", rest: "" };
-    const prefectures = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
+    const prefectures = [
+      "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
       "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
       "新潟県","富山県","石川県","福井県","山梨県","長野県",
       "岐阜県","静岡県","愛知県","三重県",
       "滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
       "鳥取県","島根県","岡山県","広島県","山口県",
       "徳島県","香川県","愛媛県","高知県",
-      "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+      "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
+    ];
     const pref = prefectures.find(p => address.startsWith(p)) || "";
     const rest = pref ? address.replace(pref, "") : address;
     const [city, ...restParts] = rest.split(/(?<=市|区|町|村)/);
     return { pref, city, rest: restParts.join("") };
   }
 
-  // --- ヤマト住所25文字分割 ---
-  function splitAddressForYamato(fullAddr) {
-    if (!fullAddr) return ["", ""];
-    const addr1 = fullAddr.slice(0, 25);
-    const addr2 = fullAddr.length > 25 ? fullAddr.slice(25) : "";
-    return [addr1, addr2];
-  }
-
-  // ============================
-  // メイン変換処理
-  // ============================
+  // ========== メイン変換処理 ==========
   async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
     const csvText = await csvFile.text();
     const rows = csvText.trim().split(/\r?\n/).map(line => line.split(","));
@@ -173,24 +142,19 @@ const waitForXLSX = () => new Promise(resolve => {
     for (const r of dataRows) {
       const orderNumber = cleanOrderNumber(r[1]); // ご注文番号
       const postal = cleanTelPostal(r[10]);       // 郵便番号
-      const phone = cleanTelPostal(r[13]);        // 電話番号
-      const addressFull = r[11] || "";            // 住所
-      const name = r[12] || "";                   // 宛名
-      const company = r[12] || "";                // CSV M列（参照していない問題修正）
-
+      const addressFull = r[11] || "";            // 住所（旧L列→K列へ）
+      const name = r[12] || "";                   // 宛名（旧P列→L列へ）
+      const company = r[12] || "";                // CSV M列→P列
+      const phone = cleanTelPostal(r[13]);        // CSV N列→I列
       const addrParts = splitAddress(addressFull);
       const senderAddrParts = splitAddress(sender.address);
-      const [addr1, addr2] = splitAddressForYamato(`${addrParts.pref}${addrParts.city}${addrParts.rest}`);
 
-      // --- 出力 ---
       sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
       sheet[`E${rowExcel}`] = { v: shipDate, t: "s" };
-      sheet[`K${rowExcel}`] = { v: postal, t: "s" };
-      sheet[`L${rowExcel}`] = { v: addr1, t: "s" }; // 住所1
-      sheet[`M${rowExcel}`] = { v: addr2, t: "s" }; // 住所2
-      sheet[`P${rowExcel}`] = { v: name, t: "s" };
-      sheet[`Q${rowExcel}`] = { v: company, t: "s" }; // M列反映
-      sheet[`I${rowExcel}`] = { v: phone, t: "s" };
+      sheet[`K${rowExcel}`] = { v: cleanTelPostal(`${addrParts.pref}${addrParts.city}${addrParts.rest}`), t: "s" }; // ← L列→K列
+      sheet[`L${rowExcel}`] = { v: name, t: "s" };  // ← P列→L列
+      sheet[`P${rowExcel}`] = { v: company, t: "s" }; // ← CSV M列参照
+      sheet[`I${rowExcel}`] = { v: cleanTelPostal(phone), t: "s" }; // ← CSV N列参照
       sheet[`Y${rowExcel}`] = { v: sender.name, t: "s" };
       sheet[`T${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
       sheet[`V${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
@@ -199,12 +163,11 @@ const waitForXLSX = () => new Promise(resolve => {
 
       rowExcel++;
     }
+
     return workbook;
   }
 
-  // ============================
-  // 変換ボタン
-  // ============================
+  // ========== 変換ボタン ==========
   function setupConvertButton() {
     convertBtn.addEventListener("click", async () => {
       const file = fileInput.files[0];
@@ -221,7 +184,6 @@ const waitForXLSX = () => new Promise(resolve => {
         const sender = getSenderInfo();
         const templatePath = "./js/newb2web_template1.xlsx";
         mergedWorkbook = await mergeToYamatoTemplate(file, templatePath, sender);
-
         showMessage("✅ 転記が完了しました。ダウンロードできます。", "success");
         downloadBtn.style.display = "block";
         downloadBtn.disabled = false;
@@ -235,9 +197,7 @@ const waitForXLSX = () => new Promise(resolve => {
     });
   }
 
-  // ============================
-  // ダウンロードボタン
-  // ============================
+  // ========== ダウンロードボタン ==========
   function setupDownloadButton() {
     downloadBtn.addEventListener("click", () => {
       if (!mergedWorkbook) {
