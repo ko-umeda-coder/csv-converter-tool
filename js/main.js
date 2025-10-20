@@ -155,7 +155,8 @@ const waitForXLSX = () => new Promise(resolve => {
   async function loadMappingJapanPost() {
     console.log("📥 ゆうプリRマッピング読込開始");
 
-    const res = await fetch("./js/ゆうプリR_外部データ取込基本レイアウト_clean.xlsx");
+    const res = await fetch("https://ko-umeda-coder.github.io/csv-converter-tool/js/ゆうプリR_外部データ取込基本レイアウト_clean.xlsx?v=" + Date.now());
+;
     if (!res.ok) throw new Error("❌ マッピングファイルが見つかりません");
     
     // ✅ arrayBufferで読み込む
