@@ -193,24 +193,24 @@ const waitForXLSX = () => new Promise(resolve => {
     const output = [];
 
     for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[1]); // ご注文番号
-      const postal = cleanTelPostal(r[10]);       // 郵便番号（K）
-      const addressFull = r[11] || "";            // 住所（L）
-      const name = r[12] || "";                   // 氏名（M）
-      const phone = cleanTelPostal(r[13]);        // 電話（N）
+      const orderNumber = cleanOrderNumber(r[2]); // ご注文番号
+      const postal = cleanTelPostal(r[11]);       // 郵便番号（K）
+      const addressFull = r[12] || "";            // 住所（L）
+      const name = r[13] || "";                   // 氏名（M）
+      const phone = cleanTelPostal(r[14]);        // 電話（N）
       const addrParts = splitAddress(addressFull);
 
       const rowOut = [];
-      rowOut[7] = name;                           // 8列目：氏名
-      rowOut[10] = postal;                        // 11列目：郵便番号
-      rowOut[11] = addrParts.pref;                // 12列目：都道府県
-      rowOut[12] = addrParts.city;                // 13列目：市区町村
-      rowOut[13] = addrParts.rest;                // 14列目：番地・建物
-      rowOut[15] = phone;                         // 16列目：電話番号
-      rowOut[22] = sender.name;                   // 23列目：送り主名
-      rowOut[30] = cleanTelPostal(sender.phone);  // 31列目：送り主電話
-      rowOut[34] = "ブーケフレーム加工品";       // 35列目：固定値
-      rowOut[49] = orderNumber;                   // 50列目：注文番号
+      rowOut[8] = name;                           // 8列目：氏名
+      rowOut[11] = postal;                        // 11列目：郵便番号
+      rowOut[12] = addrParts.pref;                // 12列目：都道府県
+      rowOut[13] = addrParts.city;                // 13列目：市区町村
+      rowOut[14] = addrParts.rest;                // 14列目：番地・建物
+      rowOut[16] = phone;                         // 16列目：電話番号
+      rowOut[23] = sender.name;                   // 23列目：送り主名
+      rowOut[31] = cleanTelPostal(sender.phone);  // 31列目：送り主電話
+      rowOut[35] = "ブーケフレーム加工品";       // 35列目：固定値
+      rowOut[50] = orderNumber;                   // 50列目：注文番号
 
       output.push(rowOut);
     }
