@@ -29,7 +29,7 @@ const waitForXLSX = () => new Promise(resolve => {
   const courierSelect = document.getElementById("courierSelect");
 
   let mergedWorkbook = null;
-  let mapping = {};
+  let convertedCSV = null;
 
   // ============================
   // 初期化
@@ -44,14 +44,11 @@ const waitForXLSX = () => new Promise(resolve => {
   // ============================
   function setupCourierOptions() {
     const options = [
-      { value: "", text: "選択してください" },
       { value: "yamato", text: "ヤマト運輸" },
       { value: "japanpost", text: "日本郵政（ゆうプリR）" },
       { value: "sagawa", text: "佐川急便（今後対応予定）" },
     ];
     courierSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join("");
-    courierSelect.disabled = false;
-    courierSelect.value = "";
   }
 
   // ============================
@@ -109,15 +106,11 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // クレンジング関数群
+  // クレンジング関数
   // ============================
   function cleanTelPostal(v) {
     if (!v) return "";
-    return String(v)
-      .replace(/^="?/, "")
-      .replace(/"$/, "")
-      .replace(/[^0-9\-]/g, "")
-      .trim();
+    return String(v).replace(/^="?/, "").replace(/"$/, "").replace(/[^0-9\-]/g, "").trim();
   }
 
   function cleanOrderNumber(value) {
@@ -128,9 +121,6 @@ const waitForXLSX = () => new Promise(resolve => {
       .trim();
   }
 
-  // ============================
-  // 住所分割
-  // ============================
   function splitAddress(address) {
     if (!address) return { pref: "", city: "", rest: "" };
     const prefList = [
@@ -150,109 +140,88 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // 外部マッピング読込（日本郵政 F列対応版）
+  // ヤマト変換処理（既存）
   // ============================
-  async function loadMappingJapanPost() {
-    console.log("📥 ゆうプリRマッピング読込開始");
-
-    const res = await fetch("https://ko-umeda-coder.github.io/csv-converter-tool/js/ゆうプリR_外部データ取込基本レイアウト_clean.xlsx?v=" + Date.now());
-;
-    if (!res.ok) throw new Error("❌ マッピングファイルが見つかりません");
-    
-    // ✅ arrayBufferで読み込む
-    const arrayBuffer = await res.arrayBuffer();
-    const wb = XLSX.read(arrayBuffer, { type: "array" });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-    mapping = {};
-    data.forEach((row, i) => {
-      if (i === 0 || !row[1]) return;
-      mapping[row[0]] = { source: String(row[1]).trim() };
-    });
-
-    console.log("✅ ゆうプリRマッピング読込完了:", mapping);
-  }
-
-  // ============================
-  // 値取得ロジック
-  // ============================
-  function getValueFromRule(rule, csvRow, sender) {
-    if (rule == null) return "";
-    if (typeof rule !== "string") rule = String(rule);
-    rule = rule.trim();
-
-    if (rule.startsWith("固定値")) return rule.replace("固定値", "").trim();
-    if (/^\d+$/.test(rule)) return rule;
-    if (rule === "TODAY") {
-      const d = new Date();
-      return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
-    }
-    if (rule.startsWith("sender")) return sender[rule.replace("sender", "").toLowerCase()] || "";
-
-    const match = rule.match(/CSV\s*([A-Z]+)列/);
-    if (match) {
-      const idx = match[1].charCodeAt(0) - 65;
-      return csvRow[idx] || "";
-    }
-
-    return rule;
-  }
-
-  // ============================
-  // 日本郵政（ゆうプリR）変換処理
-  // ============================
-  async function mergeToJapanpostTemplate(csvFile, templateUrl, sender) {
-    await loadMappingJapanPost();
-
+  async function mergeToYamatoTemplate(csvFile, templateUrl, sender) {
     const csvText = await csvFile.text();
-    const rows = csvText.trim().split(/\r?\n/).map(line => line.split(","));
+    const rows = csvText.trim().split(/\r?\n/).map(l => l.split(","));
     const dataRows = rows.slice(1);
-
     const res = await fetch(templateUrl);
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array" });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-
+    const sheet = wb.Sheets["外部データ取り込み基本レイアウト"];
     let rowExcel = 2;
     for (const r of dataRows) {
-      for (const [col, def] of Object.entries(mapping)) {
-        if (!def || !def.source) continue;
-        const value = getValueFromRule(def.source, r, sender);
-        sheet[`${col}${rowExcel}`] = { v: value ?? "", t: "s" };
-      }
+      const orderNumber = cleanOrderNumber(r[1]);
+      const postal = cleanTelPostal(r[11]);
+      const addressFull = r[12] || "";
+      const name = r[13] || "";
+      const phone = cleanTelPostal(r[14]);
+      const senderAddr = splitAddress(sender.address);
+      sheet[`B${rowExcel}`] = { v: "0", t: "s" };
+      sheet[`C${rowExcel}`] = { v: "0", t: "s" };
+      sheet[`A${rowExcel}`] = { v: orderNumber, t: "s" };
+      sheet[`E${rowExcel}`] = { v: new Date().toISOString().slice(0,10).replace(/-/g,"/"), t: "s" };
+      sheet[`I${rowExcel}`] = { v: phone, t: "s" };
+      sheet[`K${rowExcel}`] = { v: postal, t: "s" };
+      sheet[`L${rowExcel}`] = { v: addressFull, t: "s" };
+      sheet[`P${rowExcel}`] = { v: name, t: "s" };
+      sheet[`Y${rowExcel}`] = { v: sender.name, t: "s" };
+      sheet[`T${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
+      sheet[`V${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
+      sheet[`W${rowExcel}`] = { v: `${senderAddr.pref}${senderAddr.city}${senderAddr.rest}`, t: "s" };
+      sheet[`AB${rowExcel}`] = { v: "ブーケフレーム加工品", t: "s" };
       rowExcel++;
     }
-
     return wb;
   }
 
   // ============================
-  // ボタン処理
+  // ゆうプリR変換処理（新規）
+  // ============================
+  async function convertToJapanPost(csvFile) {
+    const text = await csvFile.text();
+    const rows = text.trim().split(/\r?\n/).map(l => l.split(","));
+    const dataRows = rows.slice(1);
+
+    // 転置処理
+    const transposed = dataRows[0].map((_, c) => dataRows.map(r => r[c]));
+
+    // ヘッダ削除済みCSVを再構成
+    const csvText = transposed
+      .map(row => row.map(v => `"${(v ?? "").toString().replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+
+    // Shift_JIS変換
+    const sjisArray = Encoding.convert(Encoding.stringToCode(csvText), 'SJIS');
+    const blob = new Blob([new Uint8Array(sjisArray)], { type: "text/csv" });
+    return blob;
+  }
+
+  // ============================
+  // ボタンイベント
   // ============================
   function setupConvertButton() {
     convertBtn.addEventListener("click", async () => {
       const file = fileInput.files[0];
       const courier = courierSelect.value;
-      if (!file || !courier) {
-        showMessage("宅配会社を選択してください。", "error");
-        return;
-      }
+      if (!file) return;
 
       showLoading(true);
-      showMessage("変換中...", "info");
+      showMessage("変換処理中...", "info");
 
       try {
         const sender = getSenderInfo();
-        if (courier === "japanpost") {
-          mergedWorkbook = await mergeToJapanpostTemplate(file, "./js/ゆうプリR_外部データ取込基本レイアウト_clean.xlsx", sender);
-        } else {
-          showMessage("現在対応しているのは日本郵政（ゆうプリR）のみです。", "error");
-          showLoading(false);
-          return;
+        if (courier === "yamato") {
+          mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
+          convertedCSV = null;
+          showMessage("✅ ヤマトB2テンプレートへの変換完了", "success");
+        } else if (courier === "japanpost") {
+          const blob = await convertToJapanPost(file);
+          mergedWorkbook = null;
+          convertedCSV = blob;
+          showMessage("✅ ゆうプリR形式CSV生成完了", "success");
         }
-
-        showMessage("✅ 変換完了。ダウンロードできます。", "success");
         downloadBtn.style.display = "block";
         downloadBtn.disabled = false;
         downloadBtn.className = "btn btn-primary";
@@ -265,34 +234,19 @@ const waitForXLSX = () => new Promise(resolve => {
     });
   }
 
-  // ============================
-  // ダウンロード処理（CSV出力）
-  // ============================
   function setupDownloadButton() {
     downloadBtn.addEventListener("click", () => {
-      if (!mergedWorkbook) {
+      if (mergedWorkbook) {
+        XLSX.writeFile(mergedWorkbook, "yamato_b2_import.xlsx");
+      } else if (convertedCSV) {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(convertedCSV);
+        link.download = "yupack_import.csv";
+        link.click();
+        URL.revokeObjectURL(link.href);
+      } else {
         alert("変換データがありません。");
-        return;
       }
-
-      const sheetName = mergedWorkbook.SheetNames[0];
-      const sheet = mergedWorkbook.Sheets[sheetName];
-      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-      const dataRows = json.slice(1);
-
-      const csvText = dataRows.map(row => 
-        row.map(v => `"${(v ?? "").toString().replace(/"/g, '""')}"`).join(",")
-      ).join("\r\n");
-
-      const sjisArray = Encoding.convert(Encoding.stringToCode(csvText), 'SJIS');
-      const blob = new Blob([new Uint8Array(sjisArray)], { type: "text/csv" });
-
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "japanpost_import.csv";
-      link.click();
-      URL.revokeObjectURL(link.href);
-      console.log("📦 ゆうプリR CSV出力完了");
     });
   }
 })();
