@@ -223,10 +223,10 @@ async function convertToJapanPost(csvFile, sender) {
 
       // --- CSV参照列 ---
       const orderNo = cleanOrderNumber(r[1] || "");   // ご注文番号（2列目）
-      const name = (r[12] || "").trim();              // 宛名（M列）
-      const postal = cleanTelPostal(r[10] || "");     // 郵便番号（K列）
-      const addressFull = r[11] || "";                // 住所（L列）
-      const phone = cleanTelPostal(r[13] || "");      // 電話（N列）
+      const name = (r[13] || "").trim();              // 宛名（M列）
+      const postal = cleanTelPostal(r[11] || "");     // 郵便番号（K列）
+      const addressFull = r[12] || "";                // 住所（L列）
+      const phone = cleanTelPostal(r[14] || "");      // 電話（N列）
 
       const addrParts = splitAddress(addressFull);
 
