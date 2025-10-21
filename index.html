@@ -3,228 +3,102 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CSVかんたん変換ツール</title>
+<title>📦 CSVかんたん変換ツール</title>
+<link rel="icon" href="./favicon.ico">
 <style>
 :root {
-  --primary: #0066cc;
-  --primary-hover: #0052a3;
-  --success: #28a745;
-  --error: #dc3545;
-  --bg-light: #f8f9fa;
-  --border: #dee2e6;
-  --text-dark: #212529;
-  font-size: 18px;
+  --primary: #0066cc;
+  --primary-hover: #0052a3;
+  --success: #28a745;
+  --error: #dc3545;
+  --bg-light: #f8f9fa;
+  --border: #dee2e6;
+  --text-dark: #212529;
+  font-size: 18px;
 }
-* {margin:0;padding:0;box-sizing:border-box;}
-body {
-  font-family:'Meiryo','Yu Gothic',sans-serif;
-  line-height:1.8;
-  background:var(--bg-light);
-  padding:20px;
-  color:var(--text-dark);
-}
-.container {max-width:900px;margin:0 auto;}
-.header {
-  background:linear-gradient(135deg,var(--primary),#0080ff);
-  color:white;
-  padding:30px 25px;
-  border-radius:12px;
-  margin-bottom:30px;
-  text-align:center;
-  box-shadow:0 4px 6px rgba(0,0,0,0.1);
-}
-.header h1 {font-size:2em;margin-bottom:10px;}
-.header p {font-size:1.1em;opacity:0.95;}
-.section {
-  background:white;
-  padding:30px;
-  border-radius:12px;
-  margin-bottom:25px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.1);
-}
-.section h2 {
-  font-size:1.6em;
-  color:var(--primary);
-  margin-bottom:25px;
-  padding-bottom:12px;
-  border-bottom:3px solid var(--primary);
-}
-.form-group {margin-bottom:25px;}
-.form-label {
-  display:block;
-  font-size:1.2em;
-  font-weight:bold;
-  margin-bottom:12px;
-  color:var(--text-dark);
-}
-.file-input-wrapper {
-  position:relative;
-  border:3px dashed var(--border);
-  border-radius:12px;
-  padding:40px 20px;
-  text-align:center;
-  background:var(--bg-light);
-  cursor:pointer;
-  transition:all 0.3s;
-}
-/* 💡 [追加] ドラッグオーバー時のスタイル */
-.file-input-wrapper.drag-over {
-  border-color: #ffc107; /* 黄色に変化 */
-  background: #fff3cd;
-}
-.file-input-wrapper:hover:not(.has-file) {border-color:var(--primary);background:#e3f2fd;}
-.file-input-wrapper.has-file {border-color:var(--success);background:#d4edda;}
-.file-input-wrapper input[type="file"] {
-  position:absolute;
-  opacity:0;
-  width:100%;
-  height:100%;
-  top:0;
-  left:0;
-  cursor:pointer;
-}
-/* 💡 [修正] ファイル選択後のテキストの非表示 */
-.file-input-wrapper.has-file .file-icon,
-.file-input-wrapper.has-file .file-text,
-.file-input-wrapper.has-file .file-subtext {
-  display: none;
-}
-/* 💡 [追加] ファイルがない場合のテキスト表示 */
-.file-input-wrapper:not(.has-file) .file-name {
-  display: none;
-}
-
-.file-icon {font-size:3em;margin-bottom:10px;}
-.file-text {font-size:1.2em;font-weight:bold;color:var(--text-dark);}
-.file-subtext {font-size:1em;color:#6c757d;margin-top:8px;}
-.file-name {margin-top:15px;font-size:1.1em;color:var(--success);font-weight:bold;}
-select, input[type=text] {
-  width:100%;
-  padding:16px;
-  font-size:1.2em;
-  border:2px solid var(--border);
-  border-radius:8px;
-  background:white;
-  cursor:pointer;
-  transition:border-color 0.3s;
-}
-select:focus, input[type=text]:focus {
-  outline:none;
-  border-color:var(--primary);
-  box-shadow:0 0 0 3px rgba(0,102,204,0.1);
-}
-.btn-group {display:flex;gap:15px;}
-.btn {
-  width:100%;
-  padding:18px;
-  font-size:1.3em;
-  font-weight:bold;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  transition:all 0.3s;
-  min-height:60px;
-  box-shadow:0 2px 4px rgba(0,0,0,0.1);
-}
-.btn-primary {background:var(--primary);color:white;}
-.btn-primary:hover:not(:disabled) {
-  background:var(--primary-hover);
-  transform:translateY(-2px);
-  box-shadow:0 4px 8px rgba(0,0,0,0.2);
-}
-.btn-primary:disabled {background:#ccc;cursor:not-allowed;opacity:0.6;}
-.btn-secondary {background:#6c757d;color:white;}
-.btn-secondary:disabled {opacity:0.6;cursor:not-allowed;} /* 💡 [追加] ダウンロードボタンのdisabledスタイル */
-
-.message {
-  display:none;
-  padding:20px;
-  margin:20px 0;
-  border-radius:8px;
-  font-size:1.2em;
-  font-weight:bold;
-  border-left:5px solid;
-}
-.message.error {background:#f8d7da;border-color:var(--error);color:#721c24;}
-.message.success {background:#d4edda;border-color:var(--success);color:#155724;}
-.message.info {background:#cce5ff;border-color:#004085;color:#004085;} /* 💡 [追加] infoメッセージのスタイル */
-
-.loading-overlay {
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.7);
-  display:none;
-  justify-content:center;
-  align-items:center;
-  z-index:9999;
-}
-.loading-content {text-align:center;color:white;}
-.spinner {
-  width:60px;
-  height:60px;
-  border:6px solid rgba(255,255,255,0.3);
-  border-top-color:white;
-  border-radius:50%;
-  animation:spin 1s linear infinite;
-  margin:0 auto 20px;
-}
-@keyframes spin {to{transform:rotate(360deg);}}
-.loading-text {font-size:1.5em;font-weight:bold;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Meiryo','Yu Gothic',sans-serif;line-height:1.8;background:var(--bg-light);padding:20px;color:var(--text-dark);}
+.container{max-width:900px;margin:0 auto;}
+.header{background:linear-gradient(135deg,var(--primary),#0080ff);color:white;padding:30px 25px;border-radius:12px;margin-bottom:30px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+.header h1{font-size:2em;margin-bottom:10px;}
+.header p{font-size:1.1em;opacity:0.95;}
+.section{background:white;padding:30px;border-radius:12px;margin-bottom:25px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.section h2{font-size:1.6em;color:var(--primary);margin-bottom:25px;padding-bottom:12px;border-bottom:3px solid var(--primary);}
+.form-group{margin-bottom:25px;}
+.form-label{display:block;font-size:1.2em;font-weight:bold;margin-bottom:12px;color:var(--text-dark);}
+.file-input-wrapper{position:relative;border:3px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;background:var(--bg-light);cursor:pointer;transition:all 0.3s;}
+.file-input-wrapper:hover{border-color:var(--primary);background:#e3f2fd;}
+.file-input-wrapper.has-file{border-color:var(--success);background:#d4edda;}
+.file-input-wrapper input[type="file"]{position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;}
+.file-icon{font-size:3em;margin-bottom:10px;}
+.file-text{font-size:1.2em;font-weight:bold;color:var(--text-dark);}
+.file-subtext{font-size:1em;color:#6c757d;margin-top:8px;}
+.file-name{margin-top:15px;font-size:1.1em;color:var(--success);font-weight:bold;}
+select, input[type=text]{width:100%;padding:16px;font-size:1.2em;border:2px solid var(--border);border-radius:8px;background:white;cursor:pointer;transition:border-color 0.3s;}
+select:focus, input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,102,204,0.1);}
+.btn-group{display:flex;gap:15px;}
+.btn{width:100%;padding:18px;font-size:1.3em;font-weight:bold;border:none;border-radius:8px;cursor:pointer;transition:all 0.3s;min-height:60px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.btn-primary{background:var(--primary);color:white;}
+.btn-primary:hover:not(:disabled){background:var(--primary-hover);transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,0.2);}
+.btn-primary:disabled{background:#ccc;cursor:not-allowed;opacity:0.6;}
+.message{display:none;padding:20px;margin:20px 0;border-radius:8px;font-size:1.2em;font-weight:bold;border-left:5px solid;}
+.message.error{background:#f8d7da;border-color:var(--error);color:#721c24;}
+.message.success{background:#d4edda;border-color:var(--success);color:#155724;}
+.message.info{background:#e9f7ff;border-color:var(--primary);color:#004085;}
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;z-index:9999;}
+.loading-content{text-align:center;color:white;}
+.spinner{width:60px;height:60px;border:6px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:1.5em;font-weight:bold;}
 </style>
 </head>
 <body>
 
 <div class="container">
-  <div class="header">
-    <h1>📦 CSVかんたん変換ツール</h1>
-    <p>基幹システムCSVを宅配便用フォーマット（ヤマト・日本郵政）に変換します</p>
-  </div>
+  <div class="header">
+    <h1>📦 CSVかんたん変換ツール</h1>
+    <p>基幹システムCSVを宅配便用に自動変換</p>
+  </div>
 
-    <div class="section">
-    <h2>📮 送り主情報</h2>
-        <div class="form-group"><label class="form-label" for="senderName">送り主氏名</label><input type="text" id="senderName" placeholder="例）株式会社〇〇〇〇"></div>
-    <div class="form-group"><label class="form-label" for="senderPostal">送り主郵便番号</label><input type="text" id="senderPostal" placeholder="例）100-0001"></div>
-    <div class="form-group"><label class="form-label" for="senderAddress">送り主住所</label><input type="text" id="senderAddress" placeholder="例）東京都千代田区千代田1-1"></div>
-    <div class="form-group"><label class="form-label" for="senderPhone">送り主電話番号</label><input type="text" id="senderPhone" placeholder="例）03-1234-5678"></div>
-  </div>
+  <div class="section">
+    <h2>📮 送り主情報</h2>
+    <div class="form-group"><label class="form-label">送り主氏名</label><input type="text" id="senderName"></div>
+    <div class="form-group"><label class="form-label">送り主郵便番号</label><input type="text" id="senderPostal"></div>
+    <div class="form-group"><label class="form-label">送り主住所</label><input type="text" id="senderAddress"></div>
+    <div class="form-group"><label class="form-label">送り主電話番号</label><input type="text" id="senderPhone"></div>
+  </div>
 
-    <div class="section">
-    <h2>🔄 CSV変換</h2>
-    <div id="message" class="message"></div>
+  <div class="section">
+    <h2>🔄 CSV変換</h2>
+    <div id="message" class="message"></div>
 
-    <div class="form-group">
-      <label class="form-label" for="csvFile">1️⃣ CSVファイルを選択</label>
-      <div class="file-input-wrapper" id="fileWrapper">
-        <input type="file" id="csvFile" accept=".csv">
-        <div class="file-icon">📄</div>
-        <div class="file-text">クリックしてファイルを選択</div>
-        <div class="file-subtext">または、ここにファイルをドラッグ＆ドロップ</div>
-        <div class="file-name" id="fileName"></div>
-      </div>
-    </div>
+    <div class="form-group">
+      <label class="form-label">1️⃣ CSVファイルを選択</label>
+      <div class="file-input-wrapper" id="fileWrapper">
+        <input type="file" id="csvFile" accept=".csv">
+        <div class="file-icon">📄</div>
+        <div class="file-text">クリックしてファイルを選択</div>
+        <div class="file-subtext">または、ここにファイルをドラッグ＆ドロップ</div>
+        <div class="file-name" id="fileName"></div>
+      </div>
+    </div>
 
-    <div class="form-group">
-      <label class="form-label" for="courierSelect">2️⃣ 変換先の宅配会社を選択</label>
-      <select id="courierSelect">
-              </select>
-    </div>
+    <div class="form-group">
+      <label class="form-label">2️⃣ 変換先の宅配会社を選択</label>
+      <select id="courierSelect"></select>
+    </div>
 
-    <div class="btn-group">
-      <button id="convertBtn" class="btn btn-primary" disabled>3️⃣ 変換を実行</button>
-      <button id="downloadBtn" class="btn btn-secondary" disabled>4️⃣ ファイルをダウンロード</button>
-    </div>
-  </div>
+    <div class="btn-group">
+      <button id="convertBtn" class="btn btn-primary" disabled>3️⃣ 変換する</button>
+      <button id="downloadBtn" class="btn btn-primary" style="display:none;">4️⃣ ダウンロード</button>
+    </div>
+  </div>
 </div>
 
+<!-- ライブラリ読込 -->
 <script src="./js/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js"></script>
-
 <script src="./js/main.js"></script>
 
 </body>
 </html>
-
