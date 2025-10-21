@@ -223,7 +223,7 @@ async function convertToJapanPost(csvFile, sender) {
     rowOut[1] = "0";
 
     // お届け先情報
-    rowOut[8]  = name;
+    rowOut[7]  = name;
     rowOut[9]  = postal;
     rowOut[10] = addrParts.pref;
     rowOut[11] = addrParts.city;
@@ -238,9 +238,11 @@ async function convertToJapanPost(csvFile, sender) {
     rowOut[29] = cleanTelPostal(sender.phone);
 
     // 固定値・注文番号
-    rowOut[9] = "様";
+    rowOut[8] = "様";
     rowOut[33] = "ブーケフレーム加工品";
     rowOut[34] = orderNumber; // ✅ ご注文番号をAI列に配置
+    rowOut[64] = "0";
+    rowOut[71] = "0";
 
     output.push(rowOut);
   }
