@@ -2,7 +2,7 @@ name: Deploy static site to GitHub Pages
 
 on:
   push:
-    branches: [main]  # ← mainブランチへのpush時に実行
+    branches: [main]
 
 permissions:
   contents: read
@@ -10,21 +10,21 @@ permissions:
   id-token: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm ci && npm run build
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
   deploy:
     runs-on: ubuntu-latest
-    needs: build
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # ここではビルド不要、ファイルをそのままアップロード
+      - name: Upload static files
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .  # ← ルートに index.html があるので「.」指定
+
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
