@@ -223,7 +223,7 @@ async function convertToJapanPost(csvFile, sender) {
     rowOut[1] = "0";
 
     // お届け先情報
-    rowOut[7]  = name;
+    rowOut[8]  = name;
     rowOut[9]  = postal;
     rowOut[10] = addrParts.pref;
     rowOut[11] = addrParts.city;
