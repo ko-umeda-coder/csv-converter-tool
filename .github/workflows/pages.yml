@@ -16,15 +16,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      # ここではビルド不要、ファイルをそのままアップロード
-      - name: Upload static files
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: actions/upload-pages-artifact@v3
         with:
-          path: .  # ← ルートに index.html があるので「.」指定
-
-      - name: Deploy to GitHub Pages
-        id: deployment
+          path: main        # index.html がある場所
+      - id: deployment
         uses: actions/deploy-pages@v4
