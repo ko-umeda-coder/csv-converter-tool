@@ -178,7 +178,7 @@ const waitForXLSX = () => new Promise(resolve => {
       sheet[`T${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
       sheet[`V${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
       sheet[`W${rowExcel}`] = { v: `${senderAddr.pref}${senderAddr.city}${senderAddr.rest}`, t: "s" };
-      sheet[`AB${rowExcel}`] = { v: "ブーケフレーム加工品", t: "s" };
+      sheet[`AB${rowExcel}`] = { v: "ブーケ加工品", t: "s" };
       rowExcel++;
     }
 
@@ -196,7 +196,7 @@ async function convertToJapanPost(csvFile, sender) {
   const output = [];
 
   for (const r of dataRows) {
-    const rowOut = new Array(72).fill(""); // ゆうプリの列数分（十分な長さ確保）
+    const rowOut = new Array(73).fill(""); // ゆうプリの列数分（十分な長さ確保）
 
     // --- 固定値・初期設定 ---
     rowOut[0] = "1";   // A列
