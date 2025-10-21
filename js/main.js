@@ -245,16 +245,23 @@ async function convertToJapanPost(csvFile, sender) {
     rowOut[22] = sender.name;
     rowOut[25] = cleanTelPostal(sender.postal);
 
-    // 送り主住所（pref + city + restで構築）
-    const fullSenderAddr = `${senderAddr.pref}${senderAddr.city}${senderAddr.rest}`;
-    if (fullSenderAddr.length > 25) {
-      rowOut[26] = fullSenderAddr.slice(0, 25); // AA列
-      rowOut[27] = fullSenderAddr.slice(25);    // AB列
-    } else {
-      rowOut[26] = fullSenderAddr;              // AA列
-    }
+// --- 送り主情報 ---
+const senderAddrParts = splitAddress(sender.address);
 
-    rowOut[30] = cleanTelPostal(sender.phone);
+// 都道府県・市区町村
+rowOut[26] = senderAddrParts.pref;  // AA列：都道府県
+rowOut[27] = senderAddrParts.city;  // AB列：市区町村
+
+// 市区町村以下の住所（分割処理付き）
+if (senderAddrParts.rest.length > 25) {
+  rowOut[28] = senderAddrParts.rest.slice(0, 25); // AC列：前半
+  rowOut[29] = senderAddrParts.rest.slice(25);    // AD列：後半
+} else {
+  rowOut[28] = senderAddrParts.rest;               // AC列
+  rowOut[29] = "";                                 // AD列空白
+}
+
+rowOut[30] = cleanTelPostal(sender.phone);  // AE列：送り主電話
 
     // 固定値・注文番号
     rowOut[32] = orderNumber;       // AG列
