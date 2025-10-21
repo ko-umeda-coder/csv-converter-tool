@@ -201,14 +201,14 @@ async function convertToJapanPost(csvFile, sender) {
     rowOut[0] = "1"; // A列
     rowOut[1] = "0"; // B列
     rowOut[6] = "1"; // G列（7列目固定値1）
-    rowOut[67] = "0"; // BM列
-    rowOut[72] = "0"; // BT列
+    rowOut[63] = "0"; // BM列
+    rowOut[71] = "0"; // BT列
 
     // --- CSVから値を取得 ---
     const name = (r[12] || "").trim(); // CSV M列（宛名）
     const postal = cleanTelPostal(r[10] || ""); // CSV K列（郵便番号）
     const addressFull = r[11] || ""; // CSV L列（住所1）
-    const phone = cleanTelPostal(r[13] || ""); // CSV N列（電話）
+    const phone = cleanTelPostal(r[12] || ""); // CSV N列（電話）
     const orderNo = cleanOrderNumber(r[1] || ""); // CSV B列（注文番号）
 
     // --- 宛先住所を分解 ---
