@@ -405,26 +405,17 @@ const addrParts = splitAddress(addressFull);
 const rowOut = [];
 
 rowOut[7] = name; // 8列目：氏名
-
 rowOut[10] = postal; // 11列目：郵便番号
-
 rowOut[11] = addrParts.pref; // 12列目：都道府県
-
 rowOut[12] = addrParts.city; // 13列目：市区町村
-
 rowOut[13] = addrParts.rest; // 14列目：番地・建物
-
 rowOut[15] = phone; // 16列目：電話番号
-
 rowOut[22] = sender.name; // 23列目：送り主名
-
 rowOut[30] = cleanTelPostal(sender.phone); // 31列目：送り主電話
-
 rowOut[34] = "ブーケフレーム加工品"; // 35列目：固定値
-
 rowOut[49] = orderNumber; // 50列目：注文番号
-
-
+rowOut[64] = "0";
+rowOut[71] = "0";
 
 output.push(rowOut);
 
