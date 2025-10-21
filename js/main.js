@@ -185,27 +185,24 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
 // ============================
-// ゆうプリR変換処理（完全版）
+// ゆうプリR変換処理（最終安定版）
 // ============================
 async function convertToJapanPost(csvFile, sender) {
   const text = await csvFile.text();
 
-  // ※ PapaParse利用推奨（CDN: https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js）
+  // カンマ入り住所対応（Papaparse対応推奨）
   // const rows = Papa.parse(text, { skipEmptyLines: true }).data;
-  // シンプルなsplit版（既存互換）：
   const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
-  const dataRows = rows.slice(1); // 1行目（ヘッダ）除外
+  const dataRows = rows.slice(1);
 
   const output = [];
 
-  // ============================
-  // クレンジング関数群
-  // ============================
+  // --- クレンジング関数 ---
   function cleanTelPostal(v) {
     if (!v) return "";
     return String(v)
-      .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)) // 全角数字→半角
-      .replace(/[ー－―]/g, "-") // 全角ハイフン→半角
+      .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+      .replace(/[ー－―]/g, "-")
       .replace(/^="?/, "")
       .replace(/"$/, "")
       .replace(/[^0-9\-]/g, "")
@@ -223,18 +220,16 @@ async function convertToJapanPost(csvFile, sender) {
   function cleanText(v) {
     if (!v) return "";
     return String(v)
-      .replace(/[　\s]+/g, " ") // 全角スペース→半角
-      .replace(/["']/g, "") // 余計な引用符削除
+      .replace(/[　\s]+/g, " ")
+      .replace(/["']/g, "")
       .trim();
   }
 
-  // ============================
-  // メイン処理
-  // ============================
+  // --- メイン処理 ---
   for (const r of dataRows) {
-    const rowOut = new Array(73).fill(""); // A〜BT列を確保
+    const rowOut = new Array(73).fill("");
 
-    // --- 固定値 ---
+    // 固定値
     rowOut[0] = "1";   // A列
     rowOut[1] = "0";   // B列
     rowOut[6] = "1";   // G列
@@ -242,54 +237,45 @@ async function convertToJapanPost(csvFile, sender) {
     rowOut[67] = "0";  // BM列
     rowOut[72] = "0";  // BT列
 
-    // --- CSV参照 + クレンジング ---
-    const orderNo = cleanOrderNumber(r[1] || "");   // ご注文番号（2列目）
-    const name = cleanText(r[12] || "");            // お客様名（13列目）
-    const postal = cleanTelPostal(r[10] || "");     // 郵便番号（11列目）
-    const address = cleanText(r[11] || "");         // 住所（12列目）
-    const phone = cleanTelPostal(r[13] || "");      // 電話番号（14列目）
+    // 入力データ + クレンジング
+    const orderNo = cleanOrderNumber(r[1] || "");
+    const name = cleanText(r[12] || "");
+    const postal = cleanTelPostal(r[10] || "");
+    const address = cleanText(r[11] || "");
+    const phone = cleanTelPostal(r[13] || "");
 
-    // --- 宛先住所分割（25文字で分ける） ---
+    // 宛先情報
+    rowOut[7] = name;     // H列: 宛先名
+    rowOut[10] = postal;  // K列: 宛先郵便番号
     if (address.length > 25) {
       rowOut[11] = address.slice(0, 25); // L列
       rowOut[12] = address.slice(25);    // M列
     } else {
-      rowOut[11] = address;              // L列
+      rowOut[11] = address;
     }
+    rowOut[15] = phone;   // P列: 宛先電話番号
 
-    // --- 宛先情報配置 ---
-    rowOut[7] = name;        // H列（お客様名）
-    rowOut[10] = postal;     // K列（郵便番号）
-    rowOut[15] = phone;      // P列（電話番号）
-
-    // --- 送り主住所分割 ---
+    // 送り主情報
     const senderAddress = cleanText(sender.address || "");
+    rowOut[22] = cleanText(sender.name || "");           // W列: 差出人名
+    rowOut[25] = cleanTelPostal(sender.postal || "");    // Z列: 差出人郵便番号
     if (senderAddress.length > 25) {
       rowOut[26] = senderAddress.slice(0, 25); // AA列
       rowOut[27] = senderAddress.slice(25);    // AB列
     } else {
-      rowOut[26] = senderAddress;              // AA列
+      rowOut[26] = senderAddress;
     }
+    rowOut[30] = cleanTelPostal(sender.phone || "");     // AE列: 差出人電話番号
 
-    // --- 送り主情報 ---
-    rowOut[22] = cleanText(sender.name || "");           // W列
-    rowOut[25] = cleanTelPostal(sender.postal || "");    // Z列
-    rowOut[30] = cleanTelPostal(sender.phone || "");     // AE列
-
-    // --- 注文番号・商品 ---
-    rowOut[32] = orderNo;                 // AG列（ご注文番号）
-    rowOut[34] = "ブーケ加工品";          // AI列（固定値）
+    // 注文番号・品名
+    rowOut[32] = orderNo;       // AG列
+    rowOut[34] = "ブーケ加工品"; // AI列
 
     output.push(rowOut);
   }
 
-  // ============================
-  // CSV出力（空白維持 & SJIS変換）
-  // ============================
-  const csvText = output
-    .map(row => row.map(v => `"${v || ""}"`).join(","))
-    .join("\r\n");
-
+  // --- CSV出力 ---
+  const csvText = output.map(row => row.map(v => `"${v || ""}"`).join(",")).join("\r\n");
   const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
   return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
 }
