@@ -184,44 +184,79 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // ゆうプリR変換処理（修正版）
-  // ============================
-  async function convertToJapanPost(csvFile, sender) {
-    const text = await csvFile.text();
-    const rows = text.trim().split(/\r?\n/).map(l => l.split(","));
-    const dataRows = rows.slice(1); // 1行目削除
-    const output = [];
+// ゆうプリR変換処理（最終版）
+// ============================
+async function convertToJapanPost(csvFile, sender) {
+  const text = await csvFile.text();
+  const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
 
-    for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[1]); // ご注文番号
-      const postal = cleanTelPostal(r[10]);       // 郵便番号（K）
-      const addressFull = r[11] || "";            // 住所（L）
-      const name = r[12] || "";                   // 氏名（M）
-      const phone = cleanTelPostal(r[13]);        // 電話（N）
-      const addrParts = splitAddress(addressFull);
+  // --- 基本レイアウト（Excel）読込 ---
+  const res = await fetch("./js/ゆうプリR_外部データ取込基本レイアウト.xlsx");
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
 
-      const rowOut = [];
-      rowOut[7] = name;                           // 8列目：氏名
-      rowOut[10] = postal;                        // 11列目：郵便番号
-      rowOut[11] = addrParts.pref;                // 12列目：都道府県
-      rowOut[12] = addrParts.city;                // 13列目：市区町村
-      rowOut[13] = addrParts.rest;                // 14列目：番地・建物
-      rowOut[15] = phone;                         // 16列目：電話番号
-      rowOut[22] = sender.name;                   // 23列目：送り主名
-      rowOut[30] = cleanTelPostal(sender.phone);  // 31列目：送り主電話
-      rowOut[34] = "ブーケフレーム加工品";       // 35列目：固定値
-      rowOut[49] = orderNumber;                   // 50列目：注文番号
-      rowOut[64] = "0";       // 65列目：固定値
-      rowOut[71] = "0";       // 72列目：固定値
-
-      output.push(rowOut);
-    }
-
-    // CSV生成
-    const csvText = output.map(r => r.map(v => `"${v || ""}"`).join(",")).join("\r\n");
-    const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
-    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+  // 1行目 = ヘッダ取得
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+  const headers = [];
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
+    headers.push(cell ? String(cell.v).trim() : "");
   }
+
+  const dataRows = rows.slice(1); // 1行目除外（ヘッダ不要）
+  const output = [];
+
+  for (const r of dataRows) {
+    // ===== データ取得 =====
+    const orderNumber = cleanOrderNumber(r[1] || "");   // ご注文番号（CSV 2列目）
+    const postal = cleanTelPostal(r[11] || "");         // 郵便番号
+    const addressFull = r[12] || "";                    // 住所
+    const name = r[13] || "";                           // 氏名
+    const phone = cleanTelPostal(r[14] || "");          // 電話番号
+    const addrParts = splitAddress(addressFull);
+    const senderAddr = splitAddress(sender.address);
+
+    // ===== 行初期化 =====
+    const rowOut = new Array(headers.length).fill("");
+
+    // ===== 固定値 =====
+    rowOut[0] = "1";   // A列：固定値1
+    rowOut[1] = "0";   // B列：固定値0
+
+    // ===== お届け先情報 =====
+    rowOut[6]  = name;               // H列：氏名
+    rowOut[9]  = postal;             // K列：郵便番号
+    rowOut[10] = addrParts.pref;     // L列：都道府県
+    rowOut[11] = addrParts.city;     // M列：市区町村
+    rowOut[12] = addrParts.rest;     // N列：番地・建物
+    rowOut[14] = phone;              // P列：電話番号
+
+    // ===== 送り主情報（住所分割対応） =====
+    rowOut[21] = sender.name;                       // V列：送り主名
+    rowOut[25] = cleanTelPostal(sender.postal);     // Z列：送り主郵便番号
+    rowOut[26] = `${senderAddr.pref}${senderAddr.city}`; // AA列：都道府県＋市区町村
+    rowOut[27] = senderAddr.rest;                   // AB列：番地・建物
+    rowOut[29] = cleanTelPostal(sender.phone);      // AD列：送り主電話
+
+    // ===== 固定値・注文番号 =====
+    rowOut[33] = "ブーケ加工品";   // AH列：固定値
+    rowOut[34] = orderNumber;              // ✅ AI列：ご注文番号（最終修正）
+    rowOut[64] = "0";   // BM列：固定値
+    rowOut[71] = "0";   // BT列：固定値
+
+
+    output.push(rowOut);
+  }
+
+  // --- ヘッダ行なしで出力 ---
+  const csvText = output
+    .map(row => row.map(v => `"${v !== undefined ? v : ""}"`).join(","))
+    .join("\r\n");
+
+  const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+  return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+}
 
   // ============================
   // ボタンイベント
