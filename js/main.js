@@ -184,71 +184,77 @@ const waitForXLSX = () => new Promise(resolve => {
     return wb;
   }
 
-  // ============================
-  // ゆうプリR変換処理（列右シフト＋7列目固定値1）
-  // ============================
-  async function convertToJapanPost(csvFile, sender) {
-    const text = await csvFile.text();
-    const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
-    const dataRows = rows.slice(1);
+ // ============================
+// ゆうプリR変換処理（正しい並び対応版）
+// ============================
+async function convertToJapanPost(csvFile, sender) {
+  const text = await csvFile.text();
+  const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
+  const dataRows = rows.slice(1);
 
-    const output = [];
+  const output = [];
 
-    for (const r of dataRows) {
-      const rowOut = new Array(80).fill(""); // ゆうプリの列数
+  for (const r of dataRows) {
+    const rowOut = new Array(80).fill("");
 
-      // 固定値
-      rowOut[0] = "1"; // A列
-      rowOut[1] = "0"; // B列
-      rowOut[6] = "1"; // ✅ 7列目固定値1
-      rowOut[67] = "0"; // BM列
-      rowOut[72] = "0"; // BT列
+    // --- 固定値 ---
+    rowOut[0] = "1"; // A列
+    rowOut[1] = "0"; // B列
+    rowOut[6] = "1"; // G列（7列目固定値1）
+    rowOut[67] = "0"; // BM列
+    rowOut[72] = "0"; // BT列
 
-      // CSV参照
-      const name = r[13] || "";
-      const postal = r[11] || "";
-      const address = r[12] || "";
-      const phone = r[14] || "";
-      const orderNo = r[2] || "";
+    // --- CSVから値を取得 ---
+    const name = (r[12] || "").trim(); // CSV M列（宛名）
+    const postal = cleanTelPostal(r[10] || ""); // CSV K列（郵便番号）
+    const addressFull = r[11] || ""; // CSV L列（住所1）
+    const phone = cleanTelPostal(r[13] || ""); // CSV N列（電話）
+    const orderNo = cleanOrderNumber(r[1] || ""); // CSV B列（注文番号）
 
-      // 住所分割
-      if (address.length > 25) {
-        rowOut[13] = address.slice(0, 25);
-        rowOut[14] = address.slice(25);
-      } else {
-        rowOut[13] = address;
-      }
+    // --- 宛先住所を分解 ---
+    const addrParts = splitAddress(addressFull);
+    // 残り部分をさらに番地と建物で2分割
+    const restParts = addrParts.rest.split(/(?<=丁目|番地|号)/);
+    const addr1 = restParts[0] || "";
+    const addr2 = restParts.slice(1).join("") || "";
 
-      // 宛先（右シフト）
-      rowOut[8] = name;
-      rowOut[12] = postal;
-      rowOut[17] = phone;
+    // --- 宛先情報配置 ---
+    rowOut[7] = name;             // H列：宛名
+    rowOut[8] = "様";             // I列：敬称
+    rowOut[10] = postal;          // K列：郵便番号
+    rowOut[11] = addrParts.pref;  // L列：都道府県
+    rowOut[12] = addrParts.city;  // M列：市区町村
+    rowOut[13] = addr1;           // N列：番地
+    rowOut[14] = addr2;           // O列：建物名など
+    rowOut[15] = phone;           // P列：電話番号
 
-      // 送り主
-      const senderAddr = sender.address || "";
-      if (senderAddr.length > 25) {
-        rowOut[28] = senderAddr.slice(0, 25);
-        rowOut[29] = senderAddr.slice(25);
-      } else {
-        rowOut[28] = senderAddr;
-      }
+    // --- 送り主情報 ---
+    const senderAddr = splitAddress(sender.address || "");
+    const senderRest = senderAddr.rest.split(/(?<=丁目|番地|号)/);
+    const senderAddr1 = senderRest[0] || "";
+    const senderAddr2 = senderRest.slice(1).join("") || "";
 
-      rowOut[24] = sender.name || "";
-      rowOut[27] = sender.postal || "";
-      rowOut[31] = sender.phone || "";
+    rowOut[22] = sender.name || "";          // W列：送り主名
+    rowOut[25] = cleanTelPostal(sender.postal || ""); // Z列：郵便番号
+    rowOut[26] = senderAddr.pref || "";      // AA列：都道府県
+    rowOut[27] = senderAddr.city || "";      // AB列：市区町村
+    rowOut[28] = senderAddr1 || "";          // AC列：番地
+    rowOut[29] = senderAddr2 || "";          // AD列：建物
+    rowOut[30] = cleanTelPostal(sender.phone || ""); // AE列：電話
 
-      // その他固定値
-      rowOut[33] = orderNo;
-      rowOut[35] = "ブーケ加工品";
+    // --- その他 ---
+    rowOut[32] = orderNo;                    // AG列：注文番号
+    rowOut[34] = "ブーケフレーム加工品";     // AI列：固定文字（修正済）
 
-      output.push(rowOut);
-    }
-
-    // CSV出力
-    const csvText = output.map(row => row.map(v => `"${v || ""}"`).join(",")).join("\r\n");
-    const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
-    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+    output.push(rowOut);
   }
+
+  // --- CSV出力 ---
+  const csvText = output.map(row => row.map(v => `"${v || ""}"`).join(",")).join("\r\n");
+  const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+  return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+}
+
 
   // ============================
   // ボタンイベント
