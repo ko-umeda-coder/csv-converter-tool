@@ -16,9 +16,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/upload-pages-artifact@v3
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Upload site files
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: main        # index.html がある場所
-      - id: deployment
+          path: .  # index.html がリポジトリ直下の場合
+
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
