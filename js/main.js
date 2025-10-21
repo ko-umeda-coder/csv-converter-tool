@@ -54,20 +54,29 @@ const waitForXLSX = () => new Promise(resolve => {
   // ============================
   // ファイル選択
   // ============================
-  function setupFileInput() {
-    fileInput.addEventListener("change", () => {
-      if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        fileName.textContent = file.name;
-        fileWrapper.classList.add("has-file");
-        convertBtn.disabled = false;
-      } else {
-        fileName.textContent = "";
-        fileWrapper.classList.remove("has-file");
-        convertBtn.disabled = true;
-      }
-    });
+ function setupFileInput() {
+  if (!fileInput) {
+    console.error("❌ ファイル入力要素 (#csvFile) が見つかりません。HTMLを確認してください。");
+    return;
   }
+
+  fileInput.addEventListener("change", () => {
+    console.log("📂 ファイル選択イベント発火");
+    const file = fileInput.files?.[0];
+    if (file) {
+      console.log(`✅ ${file.name} が選択されました`);
+      fileName.textContent = file.name;
+      fileWrapper.classList.add("has-file");
+      convertBtn.disabled = false;
+    } else {
+      console.warn("⚠ ファイルが選択されていません");
+      fileName.textContent = "";
+      fileWrapper.classList.remove("has-file");
+      convertBtn.disabled = true;
+    }
+  });
+}
+
 
   // ============================
   // メッセージ表示
