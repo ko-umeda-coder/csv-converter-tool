@@ -278,6 +278,69 @@ rowOut[30] = cleanTelPostal(sender.phone);  // AE列：送り主電話
   return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
 }
 
+  // ============================
+// 佐川急便（e飛伝2）変換処理
+// ============================
+async function convertToSagawa(csvFile, sender) {
+  const text = await csvFile.text();
+  const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
+  const dataRows = rows.slice(1);
+
+  // 佐川テンプレートを読み込み
+  const res = await fetch("./js/sagawa_template.xlsx");
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+
+  let rowExcel = 2;
+  for (const r of dataRows) {
+    const orderNumber = cleanOrderNumber(r[1]);   // ご注文番号
+    const postal = cleanTelPostal(r[10] || r[11]); // 郵便番号
+    const addressFull = r[11] || r[12];           // 住所
+    const name = r[12] || r[13];                  // お届け先名
+    const phone = cleanTelPostal(r[13] || r[14]); // 電話番号
+    const addrParts = splitAddress(addressFull);
+    const senderAddr = splitAddress(sender.address);
+
+    // ========================
+    // テンプレート列マッピング
+    // ========================
+
+    ws[`A${rowExcel}`] = { v: "", t: "s" };                        // お届け先コード取得区分
+    ws[`B${rowExcel}`] = { v: "", t: "s" };                        // お届け先コード
+    ws[`C${rowExcel}`] = { v: phone, t: "s" };                     // お届け先電話番号（CSV M列）
+    ws[`D${rowExcel}`] = { v: postal, t: "s" };                    // お届け先郵便番号（CSV K列）
+    ws[`E${rowExcel}`] = { v: addrParts.pref, t: "s" };            // 住所1（都道府県）
+    ws[`F${rowExcel}`] = { v: addrParts.city, t: "s" };            // 住所2（市区町村）
+    ws[`G${rowExcel}`] = { v: addrParts.rest, t: "s" };            // 住所3（番地以降）
+    ws[`H${rowExcel}`] = { v: name, t: "s" };                      // お届け先名称1（CSV N列）
+    ws[`I${rowExcel}`] = { v: "", t: "s" };                        // お届け先名称2
+    ws[`J${rowExcel}`] = { v: orderNumber, t: "s" };               // お客様管理番号（CSV B列）
+    ws[`O${rowExcel}`] = { v: sender.phone, t: "s" };              // 荷送人電話番号
+    ws[`Q${rowExcel}`] = { v: "", t: "s" };                        // ご依頼主コード
+    ws[`R${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" }; // ご依頼主電話番号
+    ws[`S${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" }; // ご依頼主郵便番号
+    ws[`T${rowExcel}`] = { v: senderAddr.pref, t: "s" };           // ご依頼主住所1
+    ws[`U${rowExcel}`] = { v: senderAddr.city + senderAddr.rest, t: "s" }; // ご依頼主住所2
+    ws[`V${rowExcel}`] = { v: sender.name, t: "s" };               // ご依頼主名称1
+    ws[`W${rowExcel}`] = { v: "", t: "s" };                        // ご依頼主名称2
+    ws[`X${rowExcel}`] = { v: "", t: "s" };                        // 荷姿
+    ws[`Y${rowExcel}`] = { v: "ブーケ加工品", t: "s" };            // 品名1（固定）
+    ws[`Z${rowExcel}`] = { v: "", t: "s" };                        // 品名2〜品名Nは空
+    ws[`AQ${rowExcel}`] = { v: 1, t: "n" };                        // 出荷個数（1固定）
+    ws[`BB${rowExcel}`] = { v: "", t: "s" };                       // 配達指定時間帯
+    ws[`BM${rowExcel}`] = { v: "", t: "s" };                       // メールアドレス
+    ws[`BN${rowExcel}`] = { v: "", t: "s" };                       // ご不在時連絡先
+    ws[`BO${rowExcel}`] = { v: new Date().toISOString().slice(0, 10).replace(/-/g, "/"), t: "s" }; // 出荷日
+    ws[`BP${rowExcel}`] = { v: "", t: "s" };                       // お問い合せ送り状No.
+    ws[`BR${rowExcel}`] = { v: "", t: "s" };                       // 編集フィールド（予備）
+
+    rowExcel++;
+  }
+
+  return wb;
+}
+
 
   // ============================
   // ボタンイベント
