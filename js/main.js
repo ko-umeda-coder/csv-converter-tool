@@ -221,6 +221,7 @@ async function convertToJapanPost(csvFile, sender) {
     // 固定値
     rowOut[0] = "1";
     rowOut[1] = "0";
+    rowOut[6] = "1";
 
     // お届け先情報
     rowOut[7]  = name;
