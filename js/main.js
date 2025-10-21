@@ -240,8 +240,8 @@ async function convertToJapanPost(csvFile, sender) {
 
     // 固定値・注文番号
     rowOut[8] = "様";
-    rowOut[33] = "ブーケフレーム加工品";
-    rowOut[34] = orderNumber; // ✅ ご注文番号をAI列に配置
+    rowOut[34] = "ブーケ加工品";
+    rowOut[32] = orderNumber; // ✅ ご注文番号をAI列に配置
     rowOut[64] = "0";
     rowOut[71] = "0";
 
