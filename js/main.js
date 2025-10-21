@@ -183,7 +183,7 @@ const waitForXLSX = () => new Promise(resolve => {
     return wb;
   }
 
-  // ============================
+// ============================
 // ゆうプリR変換処理（最終版）
 // ============================
 async function convertToJapanPost(csvFile, sender) {
@@ -196,7 +196,7 @@ async function convertToJapanPost(csvFile, sender) {
   const wb = XLSX.read(buf, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
 
-  // 1行目 = ヘッダ取得
+  // ヘッダ取得
   const range = XLSX.utils.decode_range(ws["!ref"]);
   const headers = [];
   for (let c = range.s.c; c <= range.e.c; c++) {
@@ -208,48 +208,43 @@ async function convertToJapanPost(csvFile, sender) {
   const output = [];
 
   for (const r of dataRows) {
-    // ===== データ取得 =====
     const orderNumber = cleanOrderNumber(r[1] || "");   // ご注文番号（CSV 2列目）
-    const postal = cleanTelPostal(r[11] || "");         // 郵便番号
-    const addressFull = r[12] || "";                    // 住所
-    const name = r[13] || "";                           // 氏名
-    const phone = cleanTelPostal(r[14] || "");          // 電話番号
+    const postal = cleanTelPostal(r[11] || "");
+    const addressFull = r[12] || "";
+    const name = r[13] || "";
+    const phone = cleanTelPostal(r[14] || "");
     const addrParts = splitAddress(addressFull);
     const senderAddr = splitAddress(sender.address);
 
-    // ===== 行初期化 =====
     const rowOut = new Array(headers.length).fill("");
 
-    // ===== 固定値 =====
-    rowOut[0] = "1";   // A列：固定値1
-    rowOut[1] = "0";   // B列：固定値0
+    // 固定値
+    rowOut[0] = "1";
+    rowOut[1] = "0";
 
-    // ===== お届け先情報 =====
-    rowOut[6]  = name;               // H列：氏名
-    rowOut[9]  = postal;             // K列：郵便番号
-    rowOut[10] = addrParts.pref;     // L列：都道府県
-    rowOut[11] = addrParts.city;     // M列：市区町村
-    rowOut[12] = addrParts.rest;     // N列：番地・建物
-    rowOut[14] = phone;              // P列：電話番号
+    // お届け先情報
+    rowOut[6]  = name;
+    rowOut[9]  = postal;
+    rowOut[10] = addrParts.pref;
+    rowOut[11] = addrParts.city;
+    rowOut[12] = addrParts.rest;
+    rowOut[14] = phone;
 
-    // ===== 送り主情報（住所分割対応） =====
-    rowOut[21] = sender.name;                       // V列：送り主名
-    rowOut[25] = cleanTelPostal(sender.postal);     // Z列：送り主郵便番号
-    rowOut[26] = `${senderAddr.pref}${senderAddr.city}`; // AA列：都道府県＋市区町村
-    rowOut[27] = senderAddr.rest;                   // AB列：番地・建物
-    rowOut[29] = cleanTelPostal(sender.phone);      // AD列：送り主電話
+    // 送り主情報
+    rowOut[21] = sender.name;
+    rowOut[25] = cleanTelPostal(sender.postal);
+    rowOut[26] = `${senderAddr.pref}${senderAddr.city}`;
+    rowOut[27] = senderAddr.rest;
+    rowOut[29] = cleanTelPostal(sender.phone);
 
-    // ===== 固定値・注文番号 =====
-    rowOut[33] = "ブーケ加工品";   // AH列：固定値
-    rowOut[34] = orderNumber;              // ✅ AI列：ご注文番号（最終修正）
-    rowOut[64] = "0";   // BM列：固定値
-    rowOut[71] = "0";   // BT列：固定値
-
+    // 固定値・注文番号
+    rowOut[33] = "ブーケフレーム加工品";
+    rowOut[34] = orderNumber; // ✅ ご注文番号をAI列に配置
 
     output.push(rowOut);
   }
 
-  // --- ヘッダ行なしで出力 ---
+  // ヘッダなしCSV生成
   const csvText = output
     .map(row => row.map(v => `"${v !== undefined ? v : ""}"`).join(","))
     .join("\r\n");
