@@ -185,17 +185,17 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
 // ============================
-// ゆうプリR変換処理（最終完全修正版）
+// ゆうプリR変換処理（完全レイアウト固定・列ズレ修正版）
 // ============================
 async function convertToJapanPost(csvFile, sender) {
   const text = await csvFile.text();
   const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
-  const dataRows = rows.slice(1); // 1行目ヘッダ除外
+  const dataRows = rows.slice(1); // 1行目（ヘッダ）除外
 
   const output = [];
 
   for (const r of dataRows) {
-    const rowOut = new Array(73).fill(""); // A〜BT
+    const rowOut = new Array(73).fill(""); // A〜BT列を確保
 
     // --- 固定値 ---
     rowOut[0] = "1";   // A列
@@ -205,27 +205,27 @@ async function convertToJapanPost(csvFile, sender) {
     rowOut[67] = "0";  // BM列
     rowOut[72] = "0";  // BT列
 
-    // --- CSV参照列（0基準）---
-    const orderNo = (r[1] || "").trim();           // B列（注文番号）
-    const name = (r[12] || "").trim();             // M列（お客様名）
-    const postal = cleanTelPostal(r[10] || "");    // K列（郵便番号）
-    const address = (r[11] || "").trim();          // L列（住所）
-    const phone = cleanTelPostal(r[13] || "");     // N列（電話番号）
+    // --- CSV参照 ---
+    const orderNo = (r[1] || "").trim();          // ご注文番号（2列目）
+    const name = (r[12] || "").trim();            // お客様名（13列目）
+    const postal = cleanTelPostal(r[10] || "");   // 郵便番号（11列目）
+    const address = (r[11] || "").trim();         // 住所（12列目）
+    const phone = cleanTelPostal(r[13] || "");    // 電話番号（14列目）
 
-    // --- 住所（宛先）分割 ---
+    // --- 宛先住所分割（25文字で分ける） ---
     if (address.length > 25) {
-      rowOut[11] = address.slice(0, 25);  // L列
-      rowOut[12] = address.slice(25);     // M列
+      rowOut[11] = address.slice(0, 25); // L列
+      rowOut[12] = address.slice(25);    // M列
     } else {
-      rowOut[11] = address;
+      rowOut[11] = address;              // L列
     }
 
-    // --- 宛先情報 ---
-    rowOut[7] = name;       // H列（お客様名）
-    rowOut[10] = postal;    // K列（郵便番号）
-    rowOut[15] = phone;     // P列（電話番号）
+    // --- 宛先情報配置 ---
+    rowOut[7] = name;        // H列（お客様名）
+    rowOut[10] = postal;     // K列（郵便番号）
+    rowOut[15] = phone;      // P列（電話番号）
 
-    // --- 送り主情報 ---
+    // --- 送り主住所分割 ---
     const senderAddress = sender.address || "";
     if (senderAddress.length > 25) {
       rowOut[26] = senderAddress.slice(0, 25); // AA列
@@ -234,19 +234,20 @@ async function convertToJapanPost(csvFile, sender) {
       rowOut[26] = senderAddress;              // AA列
     }
 
-    rowOut[22] = sender.name || "";          // W列
+    // --- 送り主情報 ---
+    rowOut[22] = sender.name || "";             // W列
     rowOut[25] = cleanTelPostal(sender.postal || ""); // Z列
     rowOut[30] = cleanTelPostal(sender.phone || "");  // AE列
 
-    // --- 注文番号・商品情報 ---
-    rowOut[32] = orderNo;           // AG列
-    rowOut[34] = "ブーケ加工品";   // AI列（固定）
+    // --- 注文番号・商品 ---
+    rowOut[32] = orderNo;                      // AG列（ご注文番号）
+    rowOut[34] = "ブーケ加工品";               // AI列（固定値）
 
     output.push(rowOut);
   }
 
-  // --- CSV出力（空白維持・SJIS）---
-  const csvText = output.map(r => r.map(v => `"${v || ""}"`).join(",")).join("\r\n");
+  // --- CSV出力（空白維持） ---
+  const csvText = output.map(row => row.map(v => `"${v || ""}"`).join(",")).join("\r\n");
   const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
   return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
 }
