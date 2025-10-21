@@ -183,43 +183,63 @@ const waitForXLSX = () => new Promise(resolve => {
     return wb;
   }
 
-  // ============================
-  // ゆうプリR変換処理（修正版）
-  // ============================
-  async function convertToJapanPost(csvFile, sender) {
+// ============================
+// ゆうプリR変換処理（修正版）
+// ============================
+async function convertToJapanPost(csvFile, sender) {
     const text = await csvFile.text();
+    // 💡 注意：カンマ区切りによる列ずれを防ぐため、実際にはPapaParseの使用を強く推奨します
     const rows = text.trim().split(/\r?\n/).map(l => l.split(","));
     const dataRows = rows.slice(1); // 1行目削除
     const output = [];
 
     for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[1]); // ご注文番号
-      const postal = cleanTelPostal(r[10]);       // 郵便番号（K）
-      const addressFull = r[11] || "";            // 住所（L）
-      const name = r[12] || "";                   // 氏名（M）
-      const phone = cleanTelPostal(r[13]);        // 電話（N）
-      const addrParts = splitAddress(addressFull);
+        // ゆうプリRは通常73列 (A〜BU) またはそれ以上です。
+        const rowOut = new Array(73).fill(""); // 配列を73要素で初期化 (0〜72)
 
-      const rowOut = [];
-      rowOut[7] = name;                           // 8列目：氏名
-      rowOut[10] = postal;                        // 11列目：郵便番号
-      rowOut[11] = addrParts.pref;                // 12列目：都道府県
-      rowOut[12] = addrParts.city;                // 13列目：市区町村
-      rowOut[13] = addrParts.rest;                // 14列目：番地・建物
-      rowOut[15] = phone;                         // 16列目：電話番号
-      rowOut[22] = sender.name;                   // 23列目：送り主名
-      rowOut[30] = cleanTelPostal(sender.phone);  // 31列目：送り主電話
-      rowOut[34] = "ブーケフレーム加工品";       // 35列目：固定値
-      rowOut[49] = orderNumber;                   // 50列目：注文番号
+        // 宛先情報
+        const orderNumber = cleanOrderNumber(r[1]); // ご注文番号 (元CSVのインデックス)
+        const postal = cleanTelPostal(r[10]);       // 郵便番号（K）
+        const addressFull = r[11] || "";            // 住所（L）
+        const name = r[12] || "";                   // 氏名（M）
+        const phone = cleanTelPostal(r[13]);        // 電話（N）
+        const addrParts = splitAddress(addressFull);
 
-      output.push(rowOut);
+        // --- 固定値の設定 ---
+        rowOut[0] = "1";   // A列: 郵便番号使用区分
+        rowOut[1] = "0";   // B列: 支払方法（元払い）
+        rowOut[6] = "1";   // G列: 敬称コード（様）
+        rowOut[8] = "様";  // I列: 敬称
+        // 💡 [修正] ご要望のBM列（インデックス38）に「0」を設定
+        rowOut[38] = "0";  // BM列: 配送種別（例：0=ゆうパック）
+        // 💡 [修正] ご要望のBT列（インデックス45）に「0」を設定
+        rowOut[45] = "0";  // BT列: 荷扱い（例：0=指定なし）
+
+        // --- 入力データの設定 ---
+        rowOut[7] = name;                           // H列: 宛先名
+        rowOut[10] = postal;                        // K列: 宛先郵便番号
+        // ゆうプリRは住所分割がないため、元のコードのロジックを採用
+        rowOut[11] = addressFull;                   // L列: 宛先住所1 (分割しない)
+        rowOut[15] = phone;                         // P列: 宛先電話番号
+        
+        // 送り主情報 (元のコードのまま)
+        rowOut[22] = sender.name;                   // W列: 差出人名
+        rowOut[25] = cleanTelPostal(sender.postal); // Z列: 差出人郵便番号
+        rowOut[26] = sender.address;                 // AA列: 差出人住所
+        rowOut[30] = cleanTelPostal(sender.phone);  // AE列: 差出人電話
+        
+        // 品名・注文番号 (元のコードのまま)
+        rowOut[34] = "ブーケフレーム加工品";       // AI列: 品名
+        rowOut[49] = orderNumber;                   // AX列: 注文番号 (元のコードのインデックス49=AX)
+
+        output.push(rowOut);
     }
 
     // CSV生成
     const csvText = output.map(r => r.map(v => `"${v || ""}"`).join(",")).join("\r\n");
     const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
     return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
-  }
+}
 
   // ============================
   // ボタンイベント
