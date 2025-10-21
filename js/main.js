@@ -201,42 +201,42 @@ async function convertToJapanPost(csvFile, sender) {
     // --- 固定値・初期設定 ---
     rowOut[0] = "1";   // A列
     rowOut[1] = "0";   // B列
-    rowOut[6] = "1";   // G列
-    rowOut[8] = "様";  // I列
-    rowOut[66] = "0";  // BM列
-    rowOut[71] = "0";  // BT列
+    rowOut[7] = "1";   // G列
+    rowOut[9] = "様";  // I列
+    rowOut[67] = "0";  // BM列
+    rowOut[72] = "0";  // BT列
 
     // --- CSVからの値マッピング ---
-    const name = r[12] || "";          // CSV M列 → H列
-    const postal = r[10] || "";        // CSV K列 → K列
-    const address = r[11] || "";       // CSV L列 → L列
-    const phone = r[13] || "";         // CSV N列 → P列
-    const orderNo = r[1] || "";        // CSV B列 → AG列
+    const name = r[13] || "";          // CSV M列 → H列
+    const postal = r[11] || "";        // CSV K列 → K列
+    const address = r[12] || "";       // CSV L列 → L列
+    const phone = r[14] || "";         // CSV N列 → P列
+    const orderNo = r[2] || "";        // CSV B列 → AG列
 
     // --- 住所分割（25文字超の場合） ---
     if (address.length > 25) {
-      rowOut[11] = address.slice(0, 25);   // L列
-      rowOut[12] = address.slice(25);      // M列
+      rowOut[12] = address.slice(0, 25);   // L列
+      rowOut[13] = address.slice(25);      // M列
     } else {
-      rowOut[11] = address;                // L列
+      rowOut[12] = address;                // L列
     }
 
     // --- 宛先情報 ---
     rowOut[7] = name;        // H列：宛名
-    rowOut[10] = postal;     // K列：郵便番号
-    rowOut[15] = phone;      // P列：電話番号
+    rowOut[11] = postal;     // K列：郵便番号
+    rowOut[16] = phone;      // P列：電話番号
 
     // --- 送り主情報 ---
     const senderAddr = sender.address || "";
     if (senderAddr.length > 25) {
-      rowOut[26] = senderAddr.slice(0, 25);  // AA列
-      rowOut[27] = senderAddr.slice(25);     // AB列
+      rowOut[27] = senderAddr.slice(0, 25);  // AA列
+      rowOut[28] = senderAddr.slice(25);     // AB列
     } else {
-      rowOut[26] = senderAddr;               // AA列
+      rowOut[27] = senderAddr;               // AA列
     }
 
-    rowOut[22] = sender.name || "";          // W列
-    rowOut[25] = sender.postal |
+    rowOut[23] = sender.name || "";          // W列
+    rowOut[26] = sender.postal |
 
   // ============================
   // ボタンイベント
