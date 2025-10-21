@@ -232,11 +232,11 @@ async function convertToJapanPost(csvFile, sender) {
     rowOut[15] = phone;
 
     // 送り主情報
-    rowOut[21] = sender.name;
+    rowOut[22] = sender.name;
     rowOut[25] = cleanTelPostal(sender.postal);
     rowOut[26] = `${senderAddr.pref}${senderAddr.city}`;
     rowOut[27] = senderAddr.rest;
-    rowOut[29] = cleanTelPostal(sender.phone);
+    rowOut[30] = cleanTelPostal(sender.phone);
 
     // 固定値・注文番号
     rowOut[8] = "様";
