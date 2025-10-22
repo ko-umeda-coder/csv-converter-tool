@@ -263,7 +263,7 @@ async function convertToSagawa(csvFile, sender) {
   try {
     const text = await csvFile.text();
     const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
-    const dataRows = rows.slice(1);
+    const dataRows = rows.slice(1); // 1行目はヘッダー
 
     console.log("📦 佐川変換開始：行数", dataRows.length);
 
@@ -275,62 +275,71 @@ async function convertToSagawa(csvFile, sender) {
     if (!ws) throw new Error("テンプレート内にシートが見つかりません");
 
     let rowExcel = 2;
+
     for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[1]);
-      const postal = cleanTelPostal(r[10] || r[11]);
-      const addressFull = r[11] || r[12];
-      const name = r[12] || r[13];
-      const phone = cleanTelPostal(r[13] || r[14]);
-      const addrParts = splitAddress(addressFull);
-      const senderAddr = splitAddress(sender.address);
+      // === 空行チェック ===
+      if (!r || r.length < 5 || !r[1]) continue;
 
-      // --- お届け先住所（25文字ごと分割）---
-      const rest1 = addrParts.rest.slice(0, 25);
-      const rest2 = addrParts.rest.length > 25 ? addrParts.rest.slice(25, 50) : "";
-      const rest3 = addrParts.rest.length > 50 ? addrParts.rest.slice(50) : "";
+      try {
+        const orderNumber = cleanOrderNumber(r[1] || "");
+        const postal = cleanTelPostal(r[10] || r[11] || "");
+        const addressFull = r[11] || r[12] || "";
+        const name = r[12] || r[13] || "";
+        const phone = cleanTelPostal(r[13] || r[14] || "");
+        const addrParts = splitAddress(addressFull);
+        const senderAddr = splitAddress(sender.address);
 
-      // --- 依頼主住所（25文字ごと分割）---
-      const sRest1 = senderAddr.rest.slice(0, 25);
-      const sRest2 = senderAddr.rest.length > 25 ? senderAddr.rest.slice(25, 50) : "";
-      const sRest3 = senderAddr.rest.length > 50 ? senderAddr.rest.slice(50) : "";
+        // === 住所分割 ===
+        const rest1 = addrParts.rest.slice(0, 25);
+        const rest2 = addrParts.rest.length > 25 ? addrParts.rest.slice(25, 50) : "";
+        const rest3 = addrParts.rest.length > 50 ? addrParts.rest.slice(50) : "";
 
-      // === お届け先情報 ===
-      ws[`C${rowExcel}`] = { v: phone, t: "s" };           // 電話番号
-      ws[`D${rowExcel}`] = { v: postal, t: "s" };          // 郵便番号
-      ws[`E${rowExcel}`] = { v: addrParts.pref, t: "s" };  // 住所1（都道府県）
-      ws[`F${rowExcel}`] = { v: addrParts.city, t: "s" };  // 住所2（市区町村）
-      ws[`G${rowExcel}`] = { v: rest1, t: "s" };           // 住所3（前半）
-      ws[`H${rowExcel}`] = { v: rest2, t: "s" };           // 住所4（中間）
-      ws[`I${rowExcel}`] = { v: rest3, t: "s" };           // 住所5（後半）
-      ws[`J${rowExcel}`] = { v: name, t: "s" };            // お届け先名称1
-      ws[`K${rowExcel}`] = { v: orderNumber, t: "s" };     // 管理番号
+        const sRest1 = senderAddr.rest.slice(0, 25);
+        const sRest2 = senderAddr.rest.length > 25 ? senderAddr.rest.slice(25, 50) : "";
+        const sRest3 = senderAddr.rest.length > 50 ? senderAddr.rest.slice(50) : "";
 
-      // === ご依頼主情報 ===
-      ws[`R${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" }; // 電話番号
-      ws[`S${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" }; // 郵便番号
-      ws[`T${rowExcel}`] = { v: senderAddr.pref, t: "s" };              // 住所1（都道府県）
-      ws[`U${rowExcel}`] = { v: senderAddr.city, t: "s" };              // 住所2（市区町村）
-      ws[`V${rowExcel}`] = { v: sRest1, t: "s" };                       // 住所3（前半）
-      ws[`W${rowExcel}`] = { v: sRest2, t: "s" };                       // 住所4（中間）
-      ws[`X${rowExcel}`] = { v: sRest3, t: "s" };                       // 住所5（後半）
-      ws[`Y${rowExcel}`] = { v: sender.name, t: "s" };                  // ご依頼主名称1
+        // === お届け先 ===
+        ws[`C${rowExcel}`] = { v: phone, t: "s" };
+        ws[`D${rowExcel}`] = { v: postal, t: "s" };
+        ws[`E${rowExcel}`] = { v: addrParts.pref, t: "s" };
+        ws[`F${rowExcel}`] = { v: addrParts.city, t: "s" };
+        ws[`G${rowExcel}`] = { v: rest1, t: "s" };
+        ws[`H${rowExcel}`] = { v: rest2, t: "s" };
+        ws[`I${rowExcel}`] = { v: rest3, t: "s" };
+        ws[`J${rowExcel}`] = { v: name, t: "s" };
+        ws[`K${rowExcel}`] = { v: orderNumber, t: "s" };
 
-      // === 固定値・共通設定 ===
-      ws[`Z${rowExcel}`] = { v: "ブーケ加工品", t: "s" };  // 品名1
-      ws[`AQ${rowExcel}`] = { v: 1, t: "n" };               // 出荷個数
-      ws[`BO${rowExcel}`] = { v: new Date().toISOString().slice(0, 10).replace(/-/g, "/"), t: "s" };
+        // === ご依頼主 ===
+        ws[`R${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
+        ws[`S${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
+        ws[`T${rowExcel}`] = { v: senderAddr.pref, t: "s" };
+        ws[`U${rowExcel}`] = { v: senderAddr.city, t: "s" };
+        ws[`V${rowExcel}`] = { v: sRest1, t: "s" };
+        ws[`W${rowExcel}`] = { v: sRest2, t: "s" };
+        ws[`X${rowExcel}`] = { v: sRest3, t: "s" };
+        ws[`Y${rowExcel}`] = { v: sender.name, t: "s" };
 
-      rowExcel++;
+        // === 固定値 ===
+        ws[`Z${rowExcel}`] = { v: "ブーケ加工品", t: "s" };
+        ws[`AQ${rowExcel}`] = { v: 1, t: "n" };
+        ws[`BO${rowExcel}`] = { v: new Date().toISOString().slice(0, 10).replace(/-/g, "/"), t: "s" };
+
+        rowExcel++;
+      } catch (innerErr) {
+        console.warn(`⚠️ ${rowExcel}行目でスキップ:`, innerErr);
+        continue; // 個別エラー時も次の行へ
+      }
     }
 
-    console.log("✅ 佐川変換完了：出力行数", rowExcel - 2);
+    console.log(`✅ 佐川変換完了: 出力 ${rowExcel - 2} 行`);
     return wb;
 
   } catch (err) {
-    console.error("❌ convertToSagawa エラー:", err);
+    console.error("❌ convertToSagawa 全体エラー:", err);
     throw err;
   }
 }
+
 
 
 
