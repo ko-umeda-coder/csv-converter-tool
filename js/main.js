@@ -394,6 +394,7 @@ function setupDownloadButton() {
   downloadBtn.addEventListener("click", () => {
     const courier = courierSelect.value;
 
+    // --- 佐川急便 ---
     if (courier === "sagawa" && convertedCSV) {
       const link = document.createElement("a");
       link.href = URL.createObjectURL(convertedCSV);
@@ -402,7 +403,11 @@ function setupDownloadButton() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
-    } else if (courier === "japanpost" && convertedCSV) {
+      return;
+    }
+
+    // --- 日本郵政 ---
+    if (courier === "japanpost" && convertedCSV) {
       const link = document.createElement("a");
       link.href = URL.createObjectURL(convertedCSV);
       link.download = "yupack_import.csv";
@@ -410,32 +415,17 @@ function setupDownloadButton() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
-    } else if (courier === "yamato" && mergedWorkbook) {
-      XLSX.writeFile(mergedWorkbook, "yamato_b2_import.xlsx");
-    } else {
-      alert("変換データがありません。");
+      return;
     }
+
+    // --- ヤマト運輸 ---
+    if (courier === "yamato" && mergedWorkbook) {
+      XLSX.writeFile(mergedWorkbook, "yamato_b2_import.xlsx");
+      return;
+    }
+
+    alert("変換データがありません。");
   });
 }
 
-
-  function setupDownloadButton() {
-    downloadBtn.addEventListener("click", () => {
-      if (mergedWorkbook) {
-        const courier = courierSelect.value;
-        let fileName = "output.xlsx";
-        if (courier === "yamato") fileName = "yamato_b2_import.xlsx";
-        else if (courier === "sagawa") fileName = "sagawa_ehiden_import.xlsx";
-        XLSX.writeFile(mergedWorkbook, fileName);
-      } else if (convertedCSV) {
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(convertedCSV);
-        link.download = "yupack_import.csv";
-        link.click();
-        URL.revokeObjectURL(link.href);
-      } else {
-        alert("変換データがありません。");
-      }
-    });
-  }
 })();
