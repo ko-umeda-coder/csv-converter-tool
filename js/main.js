@@ -256,8 +256,8 @@ const waitForXLSX = () => new Promise(resolve => {
     return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
   }
 
-  // ============================
-// 佐川急便（e飛伝2）変換処理
+// ============================
+// 佐川急便（e飛伝３）変換処理（住所分割対応）
 // ============================
 async function convertToSagawa(csvFile, sender) {
   try {
@@ -267,7 +267,6 @@ async function convertToSagawa(csvFile, sender) {
 
     console.log("📦 佐川変換開始：行数", dataRows.length);
 
-    // ✅ テンプレート読込確認
     const res = await fetch("./js/sagawa_template.xlsx");
     if (!res.ok) throw new Error("sagawa_template.xlsx が見つかりません");
     const buf = await res.arrayBuffer();
@@ -285,20 +284,40 @@ async function convertToSagawa(csvFile, sender) {
       const addrParts = splitAddress(addressFull);
       const senderAddr = splitAddress(sender.address);
 
-      ws[`C${rowExcel}`] = { v: phone, t: "s" };
-      ws[`D${rowExcel}`] = { v: postal, t: "s" };
-      ws[`E${rowExcel}`] = { v: addrParts.pref, t: "s" };
-      ws[`F${rowExcel}`] = { v: addrParts.city, t: "s" };
-      ws[`G${rowExcel}`] = { v: addrParts.rest, t: "s" };
-      ws[`H${rowExcel}`] = { v: name, t: "s" };
-      ws[`J${rowExcel}`] = { v: orderNumber, t: "s" };
-      ws[`R${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
-      ws[`S${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
-      ws[`T${rowExcel}`] = { v: senderAddr.pref, t: "s" };
-      ws[`U${rowExcel}`] = { v: senderAddr.city + senderAddr.rest, t: "s" };
-      ws[`V${rowExcel}`] = { v: sender.name, t: "s" };
-      ws[`Y${rowExcel}`] = { v: "ブーケ加工品", t: "s" };
-      ws[`AQ${rowExcel}`] = { v: 1, t: "n" };
+      // --- お届け先住所（25文字ごと分割）---
+      const rest1 = addrParts.rest.slice(0, 25);
+      const rest2 = addrParts.rest.length > 25 ? addrParts.rest.slice(25, 50) : "";
+      const rest3 = addrParts.rest.length > 50 ? addrParts.rest.slice(50) : "";
+
+      // --- 依頼主住所（25文字ごと分割）---
+      const sRest1 = senderAddr.rest.slice(0, 25);
+      const sRest2 = senderAddr.rest.length > 25 ? senderAddr.rest.slice(25, 50) : "";
+      const sRest3 = senderAddr.rest.length > 50 ? senderAddr.rest.slice(50) : "";
+
+      // === お届け先情報 ===
+      ws[`C${rowExcel}`] = { v: phone, t: "s" };           // 電話番号
+      ws[`D${rowExcel}`] = { v: postal, t: "s" };          // 郵便番号
+      ws[`E${rowExcel}`] = { v: addrParts.pref, t: "s" };  // 住所1（都道府県）
+      ws[`F${rowExcel}`] = { v: addrParts.city, t: "s" };  // 住所2（市区町村）
+      ws[`G${rowExcel}`] = { v: rest1, t: "s" };           // 住所3（前半）
+      ws[`H${rowExcel}`] = { v: rest2, t: "s" };           // 住所4（中間）
+      ws[`I${rowExcel}`] = { v: rest3, t: "s" };           // 住所5（後半）
+      ws[`J${rowExcel}`] = { v: name, t: "s" };            // お届け先名称1
+      ws[`K${rowExcel}`] = { v: orderNumber, t: "s" };     // 管理番号
+
+      // === ご依頼主情報 ===
+      ws[`R${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" }; // 電話番号
+      ws[`S${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" }; // 郵便番号
+      ws[`T${rowExcel}`] = { v: senderAddr.pref, t: "s" };              // 住所1（都道府県）
+      ws[`U${rowExcel}`] = { v: senderAddr.city, t: "s" };              // 住所2（市区町村）
+      ws[`V${rowExcel}`] = { v: sRest1, t: "s" };                       // 住所3（前半）
+      ws[`W${rowExcel}`] = { v: sRest2, t: "s" };                       // 住所4（中間）
+      ws[`X${rowExcel}`] = { v: sRest3, t: "s" };                       // 住所5（後半）
+      ws[`Y${rowExcel}`] = { v: sender.name, t: "s" };                  // ご依頼主名称1
+
+      // === 固定値・共通設定 ===
+      ws[`Z${rowExcel}`] = { v: "ブーケ加工品", t: "s" };  // 品名1
+      ws[`AQ${rowExcel}`] = { v: 1, t: "n" };               // 出荷個数
       ws[`BO${rowExcel}`] = { v: new Date().toISOString().slice(0, 10).replace(/-/g, "/"), t: "s" };
 
       rowExcel++;
@@ -309,9 +328,10 @@ async function convertToSagawa(csvFile, sender) {
 
   } catch (err) {
     console.error("❌ convertToSagawa エラー:", err);
-    throw err; // 上位catchに渡す
+    throw err;
   }
 }
+
 
 
   // ============================
