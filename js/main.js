@@ -257,27 +257,19 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
 // ============================
-// 佐川急便（e飛伝３）変換処理（住所分割対応）
+// 佐川急便（e飛伝2）変換処理 CSV出力版（住所分割対応）
 // ============================
 async function convertToSagawa(csvFile, sender) {
   try {
     const text = await csvFile.text();
     const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
-    const dataRows = rows.slice(1); // 1行目はヘッダー
+    const dataRows = rows.slice(1);
 
     console.log("📦 佐川変換開始：行数", dataRows.length);
 
-    const res = await fetch("./js/sagawa_template.xlsx");
-    if (!res.ok) throw new Error("sagawa_template.xlsx が見つかりません");
-    const buf = await res.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    if (!ws) throw new Error("テンプレート内にシートが見つかりません");
-
-    let rowExcel = 2;
+    const output = [];
 
     for (const r of dataRows) {
-      // === 空行チェック ===
       if (!r || r.length < 5 || !r[1]) continue;
 
       try {
@@ -289,58 +281,69 @@ async function convertToSagawa(csvFile, sender) {
         const addrParts = splitAddress(addressFull);
         const senderAddr = splitAddress(sender.address);
 
-        // === 住所分割 ===
+        // --- 住所分割（お届け先） ---
         const rest1 = addrParts.rest.slice(0, 25);
         const rest2 = addrParts.rest.length > 25 ? addrParts.rest.slice(25, 50) : "";
         const rest3 = addrParts.rest.length > 50 ? addrParts.rest.slice(50) : "";
 
+        // --- 住所分割（依頼主） ---
         const sRest1 = senderAddr.rest.slice(0, 25);
         const sRest2 = senderAddr.rest.length > 25 ? senderAddr.rest.slice(25, 50) : "";
         const sRest3 = senderAddr.rest.length > 50 ? senderAddr.rest.slice(50) : "";
 
-        // === お届け先 ===
-        ws[`C${rowExcel}`] = { v: phone, t: "s" };
-        ws[`D${rowExcel}`] = { v: postal, t: "s" };
-        ws[`E${rowExcel}`] = { v: addrParts.pref, t: "s" };
-        ws[`F${rowExcel}`] = { v: addrParts.city, t: "s" };
-        ws[`G${rowExcel}`] = { v: rest1, t: "s" };
-        ws[`H${rowExcel}`] = { v: rest2, t: "s" };
-        ws[`I${rowExcel}`] = { v: rest3, t: "s" };
-        ws[`J${rowExcel}`] = { v: name, t: "s" };
-        ws[`K${rowExcel}`] = { v: orderNumber, t: "s" };
+        // === CSV出力用配列 ===
+        const row = [];
 
-        // === ご依頼主 ===
-        ws[`R${rowExcel}`] = { v: cleanTelPostal(sender.phone), t: "s" };
-        ws[`S${rowExcel}`] = { v: cleanTelPostal(sender.postal), t: "s" };
-        ws[`T${rowExcel}`] = { v: senderAddr.pref, t: "s" };
-        ws[`U${rowExcel}`] = { v: senderAddr.city, t: "s" };
-        ws[`V${rowExcel}`] = { v: sRest1, t: "s" };
-        ws[`W${rowExcel}`] = { v: sRest2, t: "s" };
-        ws[`X${rowExcel}`] = { v: sRest3, t: "s" };
-        ws[`Y${rowExcel}`] = { v: sender.name, t: "s" };
+        // ▼ お届け先情報（テンプレート列順に配置）
+        row[0]  = "";               // お届け先コード取得区分
+        row[1]  = "";               // お届け先コード
+        row[2]  = phone;            // お届け先電話番号
+        row[3]  = postal;           // 郵便番号
+        row[4]  = addrParts.pref;   // 住所１
+        row[5]  = addrParts.city;   // 住所２
+        row[6]  = rest1;            // 住所３
+        row[7]  = rest2;            // 住所４
+        row[8]  = rest3;            // 住所５
+        row[9]  = name;             // お届け先名称１
+        row[10] = "";               // お届け先名称２
+        row[11] = orderNumber;      // 管理番号
 
-        // === 固定値 ===
-        ws[`Z${rowExcel}`] = { v: "ブーケ加工品", t: "s" };
-        ws[`AQ${rowExcel}`] = { v: 1, t: "n" };
-        ws[`BO${rowExcel}`] = { v: new Date().toISOString().slice(0, 10).replace(/-/g, "/"), t: "s" };
+        // ▼ ご依頼主情報
+        row[17] = cleanTelPostal(sender.phone); // ご依頼主電話番号
+        row[18] = cleanTelPostal(sender.postal); // ご依頼主郵便番号
+        row[19] = senderAddr.pref;   // ご依頼主住所１
+        row[20] = senderAddr.city;   // ご依頼主住所２
+        row[21] = sRest1;            // ご依頼主住所３
+        row[22] = sRest2;            // ご依頼主住所４
+        row[23] = sRest3;            // ご依頼主住所５
+        row[24] = sender.name;       // ご依頼主名称１
 
-        rowExcel++;
+        // ▼ その他固定値
+        row[25] = "ブーケ加工品";   // 品名１
+        row[40] = 1;                 // 出荷個数
+        row[60] = new Date().toISOString().slice(0, 10).replace(/-/g, "/"); // 出荷日
+
+        output.push(row);
       } catch (innerErr) {
-        console.warn(`⚠️ ${rowExcel}行目でスキップ:`, innerErr);
-        continue; // 個別エラー時も次の行へ
+        console.warn("⚠️ 1行スキップ:", innerErr);
+        continue;
       }
     }
 
-    console.log(`✅ 佐川変換完了: 出力 ${rowExcel - 2} 行`);
-    return wb;
+    console.log(`✅ 佐川変換完了: 出力 ${output.length} 行`);
+
+    // === CSV文字列化 ===
+    const csvText = output.map(row => row.map(v => `"${v ?? ""}"`).join(",")).join("\r\n");
+
+    // === 文字コード変換（SJIS） ===
+    const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
 
   } catch (err) {
-    console.error("❌ convertToSagawa 全体エラー:", err);
+    console.error("❌ convertToSagawa エラー:", err);
     throw err;
   }
 }
-
-
 
 
   // ============================
