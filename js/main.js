@@ -257,16 +257,23 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // 佐川急便（e飛伝3）変換処理
-  // ============================
-  async function convertToSagawa(csvFile, sender) {
+// 佐川急便（e飛伝2）変換処理
+// ============================
+async function convertToSagawa(csvFile, sender) {
+  try {
     const text = await csvFile.text();
     const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
     const dataRows = rows.slice(1);
+
+    console.log("📦 佐川変換開始：行数", dataRows.length);
+
+    // ✅ テンプレート読込確認
     const res = await fetch("./js/sagawa_template.xlsx");
+    if (!res.ok) throw new Error("sagawa_template.xlsx が見つかりません");
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf, { type: "array" });
     const ws = wb.Sheets[wb.SheetNames[0]];
+    if (!ws) throw new Error("テンプレート内にシートが見つかりません");
 
     let rowExcel = 2;
     for (const r of dataRows) {
@@ -297,8 +304,15 @@ const waitForXLSX = () => new Promise(resolve => {
       rowExcel++;
     }
 
+    console.log("✅ 佐川変換完了：出力行数", rowExcel - 2);
     return wb;
+
+  } catch (err) {
+    console.error("❌ convertToSagawa エラー:", err);
+    throw err; // 上位catchに渡す
   }
+}
+
 
   // ============================
   // ボタンイベント
