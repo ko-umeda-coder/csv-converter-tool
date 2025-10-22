@@ -358,14 +358,19 @@ async function convertToSagawa(csvFile, sender) {
         const sender = getSenderInfo();
 
         if (courier === "japanpost") {
-          convertedCSV = await convertToJapanPost(file, sender);
-          mergedWorkbook = null;
-          showMessage("✅ ゆうプリR変換完了", "success");
-        } else {
-          mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
-          convertedCSV = null;
-          showMessage("✅ ヤマト変換完了", "success");
-        }
+  convertedCSV = await convertToJapanPost(file, sender);
+  mergedWorkbook = null;
+  showMessage("✅ ゆうプリR変換完了", "success");
+} else if (courier === "sagawa") {
+  mergedWorkbook = await convertToSagawa(file, sender);
+  convertedCSV = null;
+  showMessage("✅ 佐川急便変換完了", "success");
+} else {
+  mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
+  convertedCSV = null;
+  showMessage("✅ ヤマト変換完了", "success");
+}
+
 
         downloadBtn.style.display = "block";
         downloadBtn.disabled = false;
