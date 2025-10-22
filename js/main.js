@@ -361,14 +361,13 @@ async function convertToSagawa(csvFile, sender) {
     try {
       const sender = getSenderInfo();
 
-      // --- 会社別変換 ---
       if (courier === "japanpost") {
         convertedCSV = await convertToJapanPost(file, sender);
         mergedWorkbook = null;
         showMessage("✅ ゆうプリR変換完了", "success");
       } else if (courier === "sagawa") {
-        mergedWorkbook = await convertToSagawa(file, sender);
-        convertedCSV = null;
+        convertedCSV = await convertToSagawa(file, sender);
+        mergedWorkbook = null;
         showMessage("✅ 佐川急便変換完了", "success");
       } else {
         mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
@@ -376,7 +375,7 @@ async function convertToSagawa(csvFile, sender) {
         showMessage("✅ ヤマト変換完了", "success");
       }
 
-      // --- ダウンロードボタンを確実に表示 ---
+      // ダウンロードボタンを表示
       downloadBtn.style.display = "inline-block";
       downloadBtn.disabled = false;
       downloadBtn.classList.add("btn", "btn-primary");
@@ -387,6 +386,34 @@ async function convertToSagawa(csvFile, sender) {
       showMessage("変換中にエラーが発生しました。", "error");
     } finally {
       showLoading(false);
+    }
+  });
+}
+
+function setupDownloadButton() {
+  downloadBtn.addEventListener("click", () => {
+    const courier = courierSelect.value;
+
+    if (courier === "sagawa" && convertedCSV) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(convertedCSV);
+      link.download = "sagawa_ehiden_import.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } else if (courier === "japanpost" && convertedCSV) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(convertedCSV);
+      link.download = "yupack_import.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } else if (courier === "yamato" && mergedWorkbook) {
+      XLSX.writeFile(mergedWorkbook, "yamato_b2_import.xlsx");
+    } else {
+      alert("変換データがありません。");
     }
   });
 }
