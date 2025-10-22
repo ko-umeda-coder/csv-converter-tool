@@ -304,43 +304,47 @@ const waitForXLSX = () => new Promise(resolve => {
   // ボタンイベント
   // ============================
   function setupConvertButton() {
-    convertBtn.addEventListener("click", async () => {
-      const file = fileInput.files[0];
-      const courier = courierSelect.value;
-      if (!file) return;
+  convertBtn.addEventListener("click", async () => {
+    const file = fileInput.files[0];
+    const courier = courierSelect.value;
+    if (!file) return;
 
-      showLoading(true);
-      showMessage("変換処理中...", "info");
+    showLoading(true);
+    showMessage("変換処理中...", "info");
 
-      try {
-        const sender = getSenderInfo();
+    try {
+      const sender = getSenderInfo();
 
-        if (courier === "japanpost") {
-          convertedCSV = await convertToJapanPost(file, sender);
-          mergedWorkbook = null;
-          showMessage("✅ ゆうプリR変換完了", "success");
-        } else if (courier === "sagawa") {
-          mergedWorkbook = await convertToSagawa(file, sender);
-          convertedCSV = null;
-          showMessage("✅ 佐川急便変換完了", "success");
-        } else {
-          mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
-          convertedCSV = null;
-          showMessage("✅ ヤマト変換完了", "success");
-        }
-
-        downloadBtn.style.display = "block";
-        downloadBtn.disabled = false;
-        downloadBtn.className = "btn btn-primary";
-
-      } catch (err) {
-        console.error(err);
-        showMessage("変換中にエラーが発生しました。", "error");
-      } finally {
-        showLoading(false);
+      // --- 会社別変換 ---
+      if (courier === "japanpost") {
+        convertedCSV = await convertToJapanPost(file, sender);
+        mergedWorkbook = null;
+        showMessage("✅ ゆうプリR変換完了", "success");
+      } else if (courier === "sagawa") {
+        mergedWorkbook = await convertToSagawa(file, sender);
+        convertedCSV = null;
+        showMessage("✅ 佐川急便変換完了", "success");
+      } else {
+        mergedWorkbook = await mergeToYamatoTemplate(file, "./js/newb2web_template1.xlsx", sender);
+        convertedCSV = null;
+        showMessage("✅ ヤマト変換完了", "success");
       }
-    });
-  }
+
+      // --- ダウンロードボタンを確実に表示 ---
+      downloadBtn.style.display = "inline-block";
+      downloadBtn.disabled = false;
+      downloadBtn.classList.add("btn", "btn-primary");
+      downloadBtn.textContent = "ダウンロード";
+
+    } catch (err) {
+      console.error(err);
+      showMessage("変換中にエラーが発生しました。", "error");
+    } finally {
+      showLoading(false);
+    }
+  });
+}
+
 
   function setupDownloadButton() {
     downloadBtn.addEventListener("click", () => {
