@@ -213,61 +213,84 @@ const waitForXLSX = () => new Promise(resolve => {
     return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
   }
 
-  // ============================
-  // 佐川急便 e飛伝Ⅱ変換処理
-  // ============================
-  async function convertToSagawa(csvFile, sender) {
-    const text = await csvFile.text();
-    const rows = text.trim().split(/\r?\n/).map(l => l.split(","));
-    const dataRows = rows.slice(1);
-    const output = [];
+ // ============================
+// 佐川急便 e飛伝Ⅱ変換処理（ヘッダ付き）
+// ============================
+async function convertToSagawa(csvFile, sender) {
+  const text = await csvFile.text();
+  const rows = text.trim().split(/\r?\n/).map(l => l.split(","));
+  const dataRows = rows.slice(1);
+  const output = [];
 
-    for (const r of dataRows) {
-      const orderNumber = cleanOrderNumber(r[1]);
-      const postal = cleanTelPostal(r[10]);
-      const addressFull = r[11] || "";
-      const name = r[12] || "";
-      const phone = cleanTelPostal(r[13]);
-      const addrParts = splitAddress(addressFull);
-      const senderParts = splitAddress(sender.address);
+  // ✅ ヘッダ定義（佐川の正式フォーマット）
+  const header = [
+    "お届け先コード取得区分","お届け先コード","お届け先電話番号","お届け先郵便番号","お届け先住所１",
+    "お届け先住所２","お届け先住所３","お届け先名称１","お届け先名称２","お客様管理番号","お客様コード",
+    "部署ご担当者コード取得区分","部署ご担当者コード","部署ご担当者名称","荷送人電話番号","ご依頼主コード取得区分",
+    "ご依頼主コード","ご依頼主電話番号","ご依頼主郵便番号","ご依頼主住所１","ご依頼主住所２",
+    "ご依頼主名称１","ご依頼主名称２","荷姿","品名１","品名２","品名３","品名４","品名５",
+    "荷札荷姿","荷札品名１","荷札品名２","荷札品名３","荷札品名４","荷札品名５","荷札品名６","荷札品名７","荷札品名８","荷札品名９","荷札品名１０","荷札品名１１",
+    "出荷個数","スピード指定","クール便指定","配達日","配達指定時間帯","配達指定時間（時分）","代引金額","消費税","決済種別","保険金額",
+    "指定シール１","指定シール２","指定シール３","営業所受取","SRC区分","営業所受取営業所コード","元着区分","メールアドレス","ご不在時連絡先","出荷日",
+    "お問い合せ送り状No.","出荷場印字区分","集約解除指定","編集０１","編集０２","編集０３","編集０４","編集０５","編集０６","編集０７","編集０８","編集０９","編集１０"
+  ];
 
-      const split25 = (txt) => {
-        if (!txt) return ["", ""];
-        return [txt.slice(0, 25), txt.slice(25, 50)];
-      };
-      const [rest1, rest2] = split25(addrParts.rest);
-      const [sRest1, sRest2] = split25(senderParts.rest);
+  for (const r of dataRows) {
+    const orderNumber = cleanOrderNumber(r[1]); // ご注文番号（B列）
+    const postal = cleanTelPostal(r[10]);       // 郵便番号（K列）
+    const addressFull = r[11] || "";            // 住所（L列）
+    const name = r[12] || "";                   // お届け先氏名（M列）
+    const phone = cleanTelPostal(r[13]);        // 電話番号（N列）
+    const addrParts = splitAddress(addressFull);
+    const senderParts = splitAddress(sender.address);
 
-      const d = new Date();
-      const today = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+    // ✅ 住所25文字ごとに分割
+    const split25 = (txt) => {
+      if (!txt) return ["", ""];
+      return [txt.slice(0, 25), txt.slice(25, 50)];
+    };
+    const [rest1, rest2] = split25(addrParts.rest);
+    const [sRest1, sRest2] = split25(senderParts.rest);
 
-      const rowOut = [];
-      rowOut[0] = "0";
-      rowOut[2] = phone;
-      rowOut[3] = postal;
-      rowOut[4] = addrParts.pref + addrParts.city;
-      rowOut[5] = rest1;
-      rowOut[6] = rest2;
-      rowOut[7] = name;
-      rowOut[9] = orderNumber;
-      rowOut[14] = cleanTelPostal(sender.phone);
-      rowOut[15] = "0";
-      rowOut[17] = cleanTelPostal(sender.phone);
-      rowOut[18] = cleanTelPostal(sender.postal);
-      rowOut[19] = senderParts.pref + senderParts.city;
-      rowOut[20] = sRest1;
-      rowOut[21] = sender.name;
-      rowOut[25] = "ブーケ加工品";
-      rowOut[40] = "1";
-      rowOut[58] = today;
+    // ✅ 日付
+    const d = new Date();
+    const today = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
 
-      output.push(rowOut);
-    }
+    // ✅ 出力行（配列の列順に合わせて埋める）
+    const rowOut = [];
+    rowOut[0] = "0"; // お届け先コード取得区分
+    rowOut[1] = "";
+    rowOut[2] = phone;
+    rowOut[3] = postal;
+    rowOut[4] = addrParts.pref + addrParts.city;
+    rowOut[5] = rest1;
+    rowOut[6] = rest2;
+    rowOut[7] = name;
+    rowOut[8] = "";
+    rowOut[9] = orderNumber;
+    rowOut[10] = "";
+    rowOut[14] = cleanTelPostal(sender.phone);
+    rowOut[15] = "0";
+    rowOut[17] = cleanTelPostal(sender.phone);
+    rowOut[18] = cleanTelPostal(sender.postal);
+    rowOut[19] = senderParts.pref + senderParts.city;
+    rowOut[20] = sRest1;
+    rowOut[21] = sender.name;
+    rowOut[25] = "ブーケ加工品";
+    rowOut[40] = "1";
+    rowOut[58] = today;
 
-    const csvText = output.map(r => r.map(v => `"${v || ""}"`).join(",")).join("\r\n");
-    const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
-    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+    output.push(rowOut);
   }
+
+  // ✅ CSV組み立て（1行目にヘッダを付与）
+  const csvText = [header.join(",")]
+    .concat(output.map(r => r.map(v => `"${v || ""}"`).join(",")))
+    .join("\r\n");
+
+  const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+  return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+}
 
   // ============================
   // ボタンイベント
