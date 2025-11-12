@@ -46,7 +46,7 @@ const waitForXLSX = () => new Promise(resolve => {
     const options = [
       { value: "yamato", text: "ヤマト運輸（B2クラウド）" },
       { value: "japanpost", text: "日本郵政（ゆうプリR）" },
-      { value: "sagawa", text: "佐川急便（e飛伝Ⅱ）" }
+      { value: "sagawa", text: "佐川急便（e飛伝Ⅱ）" },
     ];
     courierSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join("");
   }
@@ -106,7 +106,7 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
   // ============================
-  // クレンジング共通関数
+  // クレンジング関数群
   // ============================
   function applyCleaning(value, type) {
     if (!value) return "";
@@ -220,14 +220,14 @@ const waitForXLSX = () => new Promise(resolve => {
 
     const csvText = output.map(r => r.map(v => `"${v || ""}"`).join(",")).join("\r\n");
     const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
-    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+    return new Blob([new Uint8Array(sjis)], { type: "text/csv;charset=shift_jis" });
   }
 
   // ============================
-  // 佐川急便 e飛伝Ⅱ CSV変換処理
+  // 佐川急便 e飛伝Ⅱ CSV変換処理（修正版）
   // ============================
   async function convertToSagawa(csvFile, sender) {
-    console.log("🚚 佐川変換処理開始");
+    console.log("🚚 佐川変換処理開始（最終安定版）");
 
     const formatRes = await fetch("./formats/sagawaFormat.json");
     const format = await formatRes.json();
@@ -277,10 +277,9 @@ const waitForXLSX = () => new Promise(resolve => {
       .concat(output.map(r => r.map(v => `"${v || ""}"`).join(",")))
       .join("\r\n");
 
-    // ✅ BOM付き Shift_JIS 出力でExcelズレ防止
-    const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
-    const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
-    return new Blob([BOM, new Uint8Array(sjis)], { type: "text/csv" });
+    // ✅ Shift_JIS 出力（BOMなし、Excel文字化け防止）
+    const sjisArray = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+    return new Blob([new Uint8Array(sjisArray)], { type: "text/csv;charset=shift_jis" });
   }
 
   // ============================
