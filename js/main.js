@@ -259,16 +259,17 @@ async function convertToSagawa(csvFile, sender) {
     // ✅ 出力行（配列の列順に合わせて埋める）
     const rowOut = [];
     rowOut[0] = "0"; // お届け先コード取得区分
-    rowOut[1] = phone;
-    rowOut[2] = postal;
-    rowOut[3] = addrParts.pref + addrParts.city;
-    rowOut[4] = rest1;
-    rowOut[5] = rest2;
-    rowOut[6] = name;
-    rowOut[7] = "";
-    rowOut[8] = orderNumber;
-    rowOut[9] = "";
+    rowOut[1] = "";
+    rowOut[2] = phone;
+    rowOut[3] = postal;
+    rowOut[4] = addrParts.pref + addrParts.city;
+    rowOut[5] = rest1;
+    rowOut[6] = rest2;
+    rowOut[7] = name;
+    rowOut[8] = "";
+    rowOut[9] = orderNumber;
     rowOut[10] = "";
+    rowOut[11] = "";
     rowOut[14] = cleanTelPostal(sender.phone);
     rowOut[15] = "0";
     rowOut[17] = cleanTelPostal(sender.phone);
