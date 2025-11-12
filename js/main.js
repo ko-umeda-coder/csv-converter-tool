@@ -261,9 +261,9 @@ async function convertToSagawa(csvFile, sender) {
     rowOut[0] = "0"; // お届け先コード取得区分
     rowOut[1] = phone;
     rowOut[2] = postal;
-    rowOut[4] = addrParts.pref + addrParts.city;
-    rowOut[5] = rest1;
-    rowOut[6] = rest2;
+    rowOut[11] = addrParts.pref + addrParts.city;
+    rowOut[12] = rest1;
+    rowOut[13] = rest2;
     rowOut[7] = name;
     rowOut[7] = "";
     rowOut[8] = orderNumber;
