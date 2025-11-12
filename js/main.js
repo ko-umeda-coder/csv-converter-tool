@@ -223,64 +223,93 @@ const waitForXLSX = () => new Promise(resolve => {
     return new Blob([new Uint8Array(sjis)], { type: "text/csv;charset=shift_jis" });
   }
 
-  // ============================
-  // 佐川急便 e飛伝Ⅱ CSV変換処理（修正版）
-  // ============================
-  async function convertToSagawa(csvFile, sender) {
-    console.log("🚚 佐川変換処理開始（最終安定版）");
+// ============================
+// 佐川急便 e飛伝Ⅱ CSV変換処理（列調整版）
+// ============================
+async function convertToSagawa(csvFile, sender) {
+  console.log("🚚 佐川変換処理開始（列位置調整版）");
 
-    const formatRes = await fetch("./formats/sagawaFormat.json");
-    const format = await formatRes.json();
+  const formatRes = await fetch("./formats/sagawaFormat.json");
+  const format = await formatRes.json();
 
-    const text = await csvFile.text();
-    const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
-    const dataRows = rows.slice(1);
+  const text = await csvFile.text();
+  const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
+  const dataRows = rows.slice(1);
 
-    const headers = format.columns.map(c => c.header);
-    const totalCols = headers.length;
-    const output = [];
+  // 既存フォーマットのヘッダ（全体列数保持）
+  const headers = format.columns.map(c => c.header);
+  const totalCols = headers.length;
+  const output = [];
 
-    for (const row of dataRows) {
-      const outRow = new Array(totalCols).fill("");
-      for (let i = 0; i < format.columns.length; i++) {
-        const col = format.columns[i];
-        let value = "";
+  for (const row of dataRows) {
+    const outRow = new Array(totalCols).fill("");
 
-        if (col.value !== undefined) {
-          value = col.value === "TODAY"
-            ? new Date().toISOString().slice(0,10).replace(/-/g,"/")
-            : col.value;
-        } else if (col.source?.startsWith("col")) {
-          const idx = parseInt(col.source.replace("col", "")) - 1;
-          value = row[idx] || "";
-        } else if (col.source?.startsWith("sender")) {
-          const key = col.source.replace("sender", "").toLowerCase();
-          value = sender[key] || "";
-        }
+    // ============================
+    // 🧩 基本情報抽出
+    // ============================
+    const orderNumber = applyCleaning(row[1], "order");   // ご注文番号
+    const postal = applyCleaning(row[10], "postal");      // 郵便番号
+    const addressFull = row[11] || "";                    // 住所
+    const name = row[12] || "";                           // 氏名
+    const phone = applyCleaning(row[13], "tel");          // 電話番号
 
-        if (col.clean) value = applyCleaning(value, col.clean);
-        if (col.split) {
-          const addr = splitAddress(col.source?.startsWith("sender") ? sender.address : row[11] || "");
-          if (col.split === "prefCity") value = addr.pref + addr.city;
-          if (col.split === "rest1" || col.split === "rest2") {
-            const [r1, r2] = split25(addr.rest);
-            value = col.split === "rest1" ? r1 : r2;
-          }
-        }
+    const senderAddr = splitAddress(sender.address);
+    const addrParts = splitAddress(addressFull);
 
-        outRow[i] = value;
-      }
-      output.push(outRow);
-    }
+    // ============================
+    // 🏠 各列マッピング
+    // ============================
 
-    const csvText = [headers.join(",")]
-      .concat(output.map(r => r.map(v => `"${v || ""}"`).join(",")))
-      .join("\r\n");
+    // A列: お届け先コード取得区分
+    outRow[0] = "0";
 
-    // ✅ Shift_JIS 出力（BOMなし、Excel文字化け防止）
-    const sjisArray = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
-    return new Blob([new Uint8Array(sjisArray)], { type: "text/csv;charset=shift_jis" });
+    // C列: お届け先電話番号
+    outRow[2] = phone;
+
+    // D列: お届け先郵便番号
+    outRow[3] = postal;
+
+    // E列: お届け先住所（都道府県＋市区町村＋番地まで）
+    outRow[4] = `${addrParts.pref}${addrParts.city}${addrParts.rest}`;
+
+    // H列: お届け先名称（氏名）
+    outRow[7] = name;
+
+    // Q列: ご依頼主電話番号（senderPhone）
+    outRow[16] = applyCleaning(sender.phone, "tel");
+
+    // R列: ご依頼主郵便番号（senderPostal）
+    outRow[17] = applyCleaning(sender.postal, "postal");
+
+    // S列: ご依頼主住所（senderAddress）
+    outRow[18] = senderAddr.pref + senderAddr.city + senderAddr.rest;
+
+    // V列: ご依頼主名称（senderName）
+    outRow[21] = sender.name;
+
+    // AE列: 品名（固定値）
+    outRow[30] = "ブーケフレーム加工品";
+
+    // BH列: ご注文番号（CSV col2）
+    outRow[49] = orderNumber;
+
+    // BI列: 出荷日（今日）
+    outRow[50] = new Date().toISOString().slice(0, 10).replace(/-/g, "/");
+
+    output.push(outRow);
   }
+
+  // ============================
+  // CSV組み立て（SJIS出力・BOMなし）
+  // ============================
+  const csvText = [headers.join(",")]
+    .concat(output.map(r => r.map(v => `"${v || ""}"`).join(",")))
+    .join("\r\n");
+
+  const sjisArray = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+  return new Blob([new Uint8Array(sjisArray)], { type: "text/csv;charset=shift_jis" });
+}
+
 
   // ============================
   // ボタンイベント
