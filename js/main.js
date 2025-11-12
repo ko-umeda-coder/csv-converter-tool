@@ -261,10 +261,10 @@ async function convertToSagawa(csvFile, sender) {
     rowOut[0] = "0"; // お届け先コード取得区分
     rowOut[1] = phone;
     rowOut[2] = postal;
-    rowOut[3] = addrParts.pref + addrParts.city;
-    rowOut[4] = rest1;
-    rowOut[5] = rest2;
-    rowOut[6] = name;
+    rowOut[4] = addrParts.pref + addrParts.city;
+    rowOut[5] = rest1;
+    rowOut[6] = rest2;
+    rowOut[7] = name;
     rowOut[7] = "";
     rowOut[8] = orderNumber;
     rowOut[10] = "";
