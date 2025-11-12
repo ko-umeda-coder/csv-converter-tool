@@ -127,60 +127,85 @@ const waitForXLSX = () => new Promise(resolve => {
     return { pref, city, rest: rest1 || "", building: building || "" };
   }
 
-  // ============================
-  // 佐川急便（列ずれ修正版）
-  // ============================
-  async function convertToSagawa(csvFile, sender) {
-    console.log("🚚 佐川変換処理開始（列ずれ修正版）");
+// ============================
+// 佐川急便 e飛伝Ⅱ CSV変換処理（列ずれ修正版）
+// ============================
+async function convertToSagawa(csvFile, sender) {
+  console.log("🚚 佐川変換処理開始（列ずれ補正＋正規列版）");
 
-    const format = await (await fetch("./formats/sagawaFormat.json")).json();
-    const text = await csvFile.text();
-    const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
-    const dataRows = rows.slice(1);
-    const headers = format.columns.map(c => c.header);
-    const output = [];
+  // ✅ JSONマッピング読込
+  const formatRes = await fetch("./formats/sagawaFormat.json");
+  const format = await formatRes.json();
 
-    for (const r of dataRows) {
-      const outRow = new Array(headers.length).fill("0");
+  // ✅ 入力CSV読込
+  const text = await csvFile.text();
+  const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
+  const dataRows = rows.slice(1); // ヘッダ削除
 
-      for (let i = 0; i < format.columns.length; i++) {
-        const col = format.columns[i];
-        let value = col.value || "";
+  // ✅ 出力初期化
+  const headers = format.columns.map(c => c.header);
+  const totalCols = headers.length;
+  const output = [];
 
-        // --- 固定値または参照 ---
-        if (col.source?.startsWith("col")) {
-          value = r[parseInt(col.source.replace("col", "")) - 1] || "";
-        } else if (col.source?.startsWith("sender")) {
-          const key = col.source.replace("sender", "").toLowerCase();
-          value = sender[key] || "";
-        }
+  for (const row of dataRows) {
+    // --- 空欄初期化（列数に完全一致） ---
+    const outRow = Array.from({ length: totalCols }, () => "");
 
-        // --- 特殊処理（住所・電話・氏名） ---
-        if (col.header === "お届け先電話番号") value = cleanTelPostal(r[13] || "");
-        if (col.header === "お届け先郵便番号") value = cleanTelPostal(r[10] || "");
-        if (["お届け先住所１","お届け先住所２","お届け先住所３"].includes(col.header)) {
-          const addr = splitAddress(r[11] || "");
-          if (col.header === "お届け先住所１") value = addr.pref + addr.city;
-          if (col.header === "お届け先住所２") value = addr.rest;
-          if (col.header === "お届け先住所３") value = addr.building;
-        }
-        if (col.header === "お届け先名称１") value = r[12] || ""; // 氏名
+    for (let i = 0; i < format.columns.length; i++) {
+      const col = format.columns[i];
+      let value = "";
 
-        // --- クレンジング ---
-        if (col.clean) value = cleanTelPostal(value);
-
-        outRow[i] = value || "0";
+      // --- 固定値 ---
+      if (col.value !== undefined) {
+        value = (col.value === "TODAY")
+          ? `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, "0")}/${String(new Date().getDate()).padStart(2, "0")}`
+          : col.value;
       }
-      output.push(outRow);
+
+      // --- CSV参照 ---
+      if (col.source?.startsWith("col")) {
+        const idx = parseInt(col.source.replace("col", "")) - 1;
+        value = row[idx] || "";
+      }
+
+      // --- sender参照 ---
+      if (col.source?.startsWith("sender")) {
+        const key = col.source.replace("sender", "").toLowerCase();
+        value = sender[key] || "";
+      }
+
+      // --- 特殊マッピング ---
+      if (col.header === "お届け先電話番号") value = cleanTelPostal(row[13] || "");
+      if (col.header === "お届け先郵便番号") value = cleanTelPostal(row[10] || "");
+      if (["お届け先住所１", "お届け先住所２", "お届け先住所３"].includes(col.header)) {
+        const addr = splitAddress(row[11] || "");
+        if (col.header === "お届け先住所１") value = addr.pref + addr.city;
+        if (col.header === "お届け先住所２") value = addr.rest;
+        if (col.header === "お届け先住所３") value = addr.building;
+      }
+      if (col.header === "お届け先名称１") value = row[12] || "";
+
+      // --- クレンジング ---
+      if (col.clean) value = cleanTelPostal(value);
+
+      // ✅ 列ずれ防止：明示的な配置
+      outRow[i] = value || "";
     }
 
-    const csvText = [headers.join(",")]
-      .concat(output.map(r => r.map(v => `"${v}"`).join(",")))
-      .join("\r\n");
-
-    const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
-    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+    // ✅ 最初の列（A列）に固定値"0"をセット
+    outRow[0] = "0";
+    output.push(outRow);
   }
+
+  // ✅ CSV出力
+  const csvText = [headers.join(",")]
+    .concat(output.map(r => r.map(v => `"${v || ""}"`).join(",")))
+    .join("\r\n");
+
+  const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+  return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+}
+
 
   // ============================
   // ボタン処理
