@@ -131,79 +131,119 @@ const waitForXLSX = () => new Promise(resolve => {
 // 佐川急便 e飛伝Ⅱ CSV変換処理（列ずれ修正版）
 // ============================
 async function convertToSagawa(csvFile, sender) {
-  console.log("🚚 佐川変換処理開始（列ずれ補正＋正規列版）");
+  console.log("🚚 佐川変換処理開始（列ずれ補正＋明示列版）");
 
-  // ✅ JSONマッピング読込
-  const formatRes = await fetch("./formats/sagawaFormat.json");
-  const format = await formatRes.json();
+  // テンプレートのヘッダー列数を取得（JSONが72列あることを想定）
+  // ※JSONの取得に失敗した場合、デフォルトで72列（A～BT）として処理を継続
+  let totalCols = 72;
+  let headers = [];
+  try {
+    const formatRes = await fetch("./formats/sagawaFormat.json");
+    const format = await formatRes.json();
+    totalCols = format.columns ? format.columns.length : 72;
+    headers = format.columns ? format.columns.map(c => c.header) : [];
+  } catch (e) {
+    console.error("formats/sagawaFormat.jsonの読み込みに失敗しました。", e);
+    // ヘッダーは空のまま処理を続行（CSV出力時にデータのみになるが列位置は担保）
+  }
 
-  // ✅ 入力CSV読込
-  const text = await csvFile.text();
-  const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
-  const dataRows = rows.slice(1); // ヘッダ削除
+  // 入力CSV読込
+  const text = await csvFile.text();
+  const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
+  const dataRows = rows.slice(1); // ヘッダ削除
 
-  // ✅ 出力初期化
-  const headers = format.columns.map(c => c.header);
-  const totalCols = headers.length;
-  const output = [];
+  const output = [];
 
-  for (const row of dataRows) {
-    // --- 空欄初期化（列数に完全一致） ---
-    const outRow = Array.from({ length: totalCols }, () => "");
+  // 送り主住所を結合 (正しい版のT, U列に格納するため)
+  const senderAddr = splitAddress(sender.address);
+  const senderAddressCombined = senderAddr.pref + senderAddr.city + senderAddr.rest + senderAddr.building;
 
-    for (let i = 0; i < format.columns.length; i++) {
-      const col = format.columns[i];
-      let value = "";
+  for (const row of dataRows) {
+    // --- 空欄初期化（列数に完全一致） ---
+    const outRow = Array.from({ length: totalCols }, () => "");
 
-      // --- 固定値 ---
-      if (col.value !== undefined) {
-        value = (col.value === "TODAY")
-          ? `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, "0")}/${String(new Date().getDate()).padStart(2, "0")}`
-          : col.value;
-      }
+    // ============================
+    // 🧩 入力CSVからのデータ抽出とクレンジング
+    // ============================
+    const orderNumber = cleanOrderNumber(row[1] || "");   // ご注文番号 (入力CSV col 2)
+    const name = row[12] || "";                           // 氏名 (入力CSV col 13)
+    const phone = cleanTelPostal(row[13] || "");          // 電話番号 (入力CSV col 14)
+    const postal = cleanTelPostal(row[10] || "");         // 郵便番号 (入力CSV col 11)
+    const addressFull = row[11] || "";                    // 住所 (入力CSV col 12)
 
-      // --- CSV参照 ---
-      if (col.source?.startsWith("col")) {
-        const idx = parseInt(col.source.replace("col", "")) - 1;
-        value = row[idx] || "";
-      }
+    // 住所分割
+    const addrParts = splitAddress(addressFull);
 
-      // --- sender参照 ---
-      if (col.source?.startsWith("sender")) {
-        const key = col.source.replace("sender", "").toLowerCase();
-        value = sender[key] || "";
-      }
+    // ============================
+    // 🏠 明示的な列マッピング (正しい版に合わせたインデックス)
+    // ============================
 
-      // --- 特殊マッピング ---
-      if (col.header === "お届け先電話番号") value = cleanTelPostal(row[13] || "");
-      if (col.header === "お届け先郵便番号") value = cleanTelPostal(row[10] || "");
-      if (["お届け先住所１", "お届け先住所２", "お届け先住所３"].includes(col.header)) {
-        const addr = splitAddress(row[11] || "");
-        if (col.header === "お届け先住所１") value = addr.pref + addr.city;
-        if (col.header === "お届け先住所２") value = addr.rest;
-        if (col.header === "お届け先住所３") value = addr.building;
-      }
-      if (col.header === "お届け先名称１") value = row[12] || "";
+    // A列 (0): お届け先コード取得区分
+    outRow[0] = "0"; // 必須
 
-      // --- クレンジング ---
-      if (col.clean) value = cleanTelPostal(value);
+    // C列 (2): お届け先電話番号
+    outRow[2] = phone;
 
-      // ✅ 列ずれ防止：明示的な配置
-      outRow[i] = value || "";
-    }
+    // D列 (3): お届け先郵便番号
+    outRow[3] = postal;
 
-    // ✅ 最初の列（A列）に固定値"0"をセット
-    outRow[0] = "0";
-    output.push(outRow);
-  }
+    // E列 (4): お届け先住所１ (都道府県＋市区町村)
+    outRow[4] = addrParts.pref + addrParts.city;
 
-  // ✅ CSV出力
-  const csvText = [headers.join(",")]
-    .concat(output.map(r => r.map(v => `"${v || ""}"`).join(",")))
-    .join("\r\n");
+    // F列 (5): お届け先住所２ (番地)
+    outRow[5] = addrParts.rest;
+    
+    // G列 (6): お届け先住所３ (ビル名など)
+    outRow[6] = addrParts.building;
 
-  const sjis = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
-  return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+    // H列 (7): お届け先名称１（氏名）
+    outRow[7] = name;
+
+    // ✅ I列 (8): お届け先名称２（正しい版に合わせ、ここに注文番号を格納）
+    outRow[8] = orderNumber;
+    
+    // -----------------------------------
+    // ご依頼主情報
+    // -----------------------------------
+    
+    // R列 (17): ご依頼主電話番号
+    outRow[17] = cleanTelPostal(sender.phone);
+
+    // S列 (18): ご依頼主郵便番号
+    outRow[18] = cleanTelPostal(sender.postal);
+
+    // T列 (19): ご依頼主住所１
+    // U列 (20): ご依頼主住所２
+    // 「正しい版」に合わせ、ご依頼主住所は分割せずフルアドレスを格納
+    outRow[19] = senderAddressCombined;
+    outRow[20] = senderAddressCombined;
+
+    // V列 (21): ご依頼主名称１
+    outRow[21] = sender.name;
+
+    // -----------------------------------
+    // 品名・日付
+    // -----------------------------------
+
+    // AE列 (30): 荷札品名１（固定値）
+    outRow[30] = "ブーケフレーム加工品";
+    
+    // BG列 (58): 出荷日 (YYYY/MM/DD 形式)
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, "0")}/${String(today.getDate()).padStart(2, "0")}`;
+    outRow[58] = dateStr;
+
+    output.push(outRow);
+  }
+
+  // CSV組み立て（SJIS出力・BOMなし）
+  const csvText = [headers.join(",")]
+    .concat(output.map(r => r.map(v => `"${v || ""}"`).join(",")))
+    .join("\r\n");
+
+  // Encodingライブラリの利用 (元のコードに従う)
+  const sjisArray = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+  return new Blob([new Uint8Array(sjisArray)], { type: "text/csv" });
 }
 
 
