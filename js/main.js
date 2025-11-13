@@ -107,10 +107,10 @@ const waitForXLSX = () => new Promise((resolve) => {
     const output = [];
 
     for (const r of data) {
-      const name = r[12] || "";
-      const postal = cleanTelPostal(r[10] || "");
-      const addrFull = r[11] || "";   // ← フル住所1列
-      const phone = cleanTelPostal(r[13] || "");
+      const name = r[14] || "";
+      const postal = cleanTelPostal(r[12] || "");
+      const addrFull = r[13] || "";   // ← フル住所1列
+      const phone = cleanTelPostal(r[15] || "");
       const orderNo = cleanOrderNumber(r[1] || "");
 
       const row = [];
@@ -190,11 +190,11 @@ const waitForXLSX = () => new Promise((resolve) => {
     for (const r of data) {
       const out = Array(74).fill("");
 
-      const addrFull = r[11] || "";
-      const postal   = cleanTelPostal(r[10] || "");
+      const addrFull = r[13] || "";
+      const postal   = cleanTelPostal(r[12] || "");
 
       out[0]  = "0";
-      out[2]  = cleanTelPostal(r[13]||"");
+      out[2]  = cleanTelPostal(r[15]||"");
       out[3]  = postal;
 
       // 住所1のみにセット（住所2,3 は空欄）
@@ -202,7 +202,7 @@ const waitForXLSX = () => new Promise((resolve) => {
       out[5] = "";
       out[6] = "";
 
-      out[7] = r[12] || "";
+      out[7] = r[14] || "";
       out[8] = cleanOrderNumber(r[1] || "");
 
       out[17] = sender.phone;
