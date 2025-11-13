@@ -281,10 +281,10 @@ const waitForXLSX = () => new Promise((resolve) => {
 
     for(const r of data){
       const order = cleanOrderNumber(r[1]||"");
-      const tel   = cleanTelPostal(r[13]||"");
-      const zip   = cleanTelPostal(r[10]||"");
-      const name  = r[12]||"";
-      const adr   = r[11]||"";  // ★住所1列
+      const tel   = cleanTelPostal(r[14]||"");
+      const zip   = cleanTelPostal(r[11]||"");
+      const name  = r[13]||"";
+      const adr   = r[12]||"";  // ★住所1列
 
       set(map.order, order);
       set(map.type, "0");
