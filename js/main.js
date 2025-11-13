@@ -128,82 +128,222 @@ const waitForXLSX = () => new Promise(resolve => {
   }
 
 // ============================
-// 佐川急便 e飛伝Ⅱ CSV変換処理（列ずれ完全修正版）
+// 佐川急便（e飛伝Ⅱ） ヘッダ名マッピング対応版
 // ============================
-async function convertToSagawa(csvFile, sender) {
-  console.log("🚚 佐川変換処理開始（列ずれ完全修正版）");
 
-  // 入力CSV読込
+async function convertToSagawa(csvFile, sender) {
+  console.log("🚚 佐川変換処理（ヘッダ名マッピング方式）開始");
+
+  // ① 入力 CSV（発送伝票対象一覧）読み込み
   const text = await csvFile.text();
   const rows = text.trim().split(/\r?\n/).map(line => line.split(","));
-  const dataRows = rows.slice(1); // ヘッダ削除
 
-  const totalCols = 72; // 常に72列固定（A〜BV）
-  const output = [];
+  const inputHeaders = rows[0]; // ← ヘッダ行
+  const dataRows = rows.slice(1);
 
-  // 固定ヘッダー（e飛伝Ⅱフォーマット）
-  const headers = [
-    "お届け先コード取得区分","お届け先コード","お届け先電話番号","お届け先郵便番号","お届け先住所1","お届け先住所2",
-    "お届け先住所3","お届け先名称1","お届け先名称2","お客様管理番号","お客様コード","部署ご担当者コード取得区分","部署ご担当者コード",
-    "部署ご担当者名称","荷送人電話番号","ご依頼主コード取得区分","ご依頼主コード","ご依頼主電話番号","ご依頼主郵便番号",
-    "ご依頼主住所1","ご依頼主住所2","ご依頼主名称1","ご依頼主名称2","荷姿","品名1","品名2","品名3","品名4","品名5",
-    "荷札荷姿","荷札品名1","荷札品名2","荷札品名3","荷札品名4","荷札品名5","荷札品名6","荷札品名7","荷札品名8","荷札品名9",
-    "荷札品名10","荷札品名11","出荷個数","スピード指定","クール便指定","配達日","配達指定時間帯","配達指定時間（時分）","代引金額",
-    "消費税","決済種別","保険金額","指定シール1","指定シール2","指定シール3","営業所受取","SRC区分","営業所受取営業所コード",
-    "元着区分","メールアドレス","ご不在時連絡先","出荷日","お問い合せ送り状No.","出荷場印字区分","集約解除指定",
-    "編集01","編集02","編集03","編集04","編集05","編集06","編集07","編集08","編集09","編集10"
-  ];
+  // ② 佐川テンプレート（取り込み用CSV）読み込み（ヘッダ）
+  const res = await fetch("./js/okurijo_torikomi_format.csv");
+  const tmplText = await res.text();
+  const tmplRows = tmplText.trim().split(/\r?\n/).map(line => line.split(","));
+  const outputHeaders = tmplRows[0]; // ← 正しい版のヘッダ行
+  const totalCols = outputHeaders.length;
 
-  // 送り主住所を結合
-  const senderAddr = splitAddress(sender.address);
-  const senderAddressCombined =
-    senderAddr.pref + senderAddr.city + senderAddr.rest + senderAddr.building;
+  console.log("入力ヘッダ：", inputHeaders);
+  console.log("出力ヘッダ：", outputHeaders);
 
-  for (const row of dataRows) {
-    const outRow = Array.from({ length: totalCols }, () => "");
+  // ③ 入力CSVのヘッダ → index 変換
+  const inputIndex = {};
+  inputHeaders.forEach((h, idx) => (inputIndex[h.trim()] = idx));
 
-    // 入力CSV参照
-    const orderNumber = cleanOrderNumber(row[1] || "");
-    const name = row[12] || "";
-    const phone = cleanTelPostal(row[13] || "");
-    const postal = cleanTelPostal(row[10] || "");
-    const addressFull = row[11] || "";
-    const addrParts = splitAddress(addressFull);
+  // ④ マッピングルール（A〜BV の仕様をヘッダ名で定義）
+  const mapping = {
+    "お届け先コード取得区分": { value: "0" },
+    "お届け先コード": {},
+    "お届け先電話番号": { from: "電話番号（半角英数）", clean: "tel" },
+    "お届け先郵便番号": { from: "郵便番号（半角英数）", clean: "postal" },
+    "お届け先住所１": { from: "住所（都道府県・建物名含む）", split: "prefCity" },
+    "お届け先住所２": { from: "住所（都道府県・建物名含む）", split: "rest" },
+    "お届け先住所３": { from: "住所（都道府県・建物名含む）", split: "building" },
+    "お届け先名称１": { from: "お届け先の宛名" },
+    "お届け先名称２": { from: "ご注文番号", clean: "order" },
 
-    // 明示マッピング
-    outRow[0] = "0"; // お届け先コード取得区分
-    outRow[2] = phone; // お届け先電話番号
-    outRow[3] = postal; // 郵便番号
-    outRow[4] = addrParts.pref + addrParts.city; // 住所1
-    outRow[5] = addrParts.rest; // 住所2
-    outRow[6] = addrParts.building; // 住所3
-    outRow[7] = name; // お届け先名称1
-    outRow[8] = orderNumber; // 名称2に注文番号
+    "お客様管理番号": {},
+    "お客様コード": {},
+    "部署ご担当者コード取得区分": {},
+    "部署ご担当者コード": {},
+    "部署ご担当者名称": {},
+    "荷送人電話番号": {},
 
-    // ご依頼主情報
-    outRow[17] = cleanTelPostal(sender.phone);
-    outRow[18] = cleanTelPostal(sender.postal);
-    outRow[19] = senderAddressCombined;
-    outRow[20] = senderAddressCombined;
-    outRow[21] = sender.name;
+    "ご依頼主コード取得区分": {},
+    "ご依頼主コード": {},
+    "ご依頼主電話番号": { fromSender: "phone", clean: "tel" },
+    "ご依頼主郵便番号": { fromSender: "postal", clean: "postal" },
+    "ご依頼主住所１": { fromSender: "address", split: "prefCity" },
+    "ご依頼主住所２": { fromSender: "address", split: "rest" },
+    "ご依頼主名称１": { fromSender: "name" },
+    "ご依頼主名称２": {},
 
-    // 品名・出荷日
-    outRow[30] = "ブーケフレーム加工品";
-    const today = new Date();
-    outRow[58] = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, "0")}/${String(today.getDate()).padStart(2, "0")}`;
+    "荷姿": {},
+    "品名１": { value: "ブーケ加工品" },
+    "品名２": {},
+    "品名３": {},
+    "品名４": {},
+    "品名５": {},
 
-    output.push(outRow);
+    // 荷札関係
+    "荷札荷姿": {},
+    "荷札品名１": {},
+    "荷札品名２": {},
+    "荷札品名３": {},
+    "荷札品名４": {},
+    "荷札品名５": {},
+    "荷札品名６": {},
+    "荷札品名７": {},
+    "荷札品名８": {},
+    "荷札品名９": {},
+    "荷札品名10": {},
+    "荷札品名11": {},
+
+    "出荷個数": {},
+    "スピード指定": {},
+    "クール便指定": {},
+    "配達日": {},
+
+    "配達指定時間帯": {},
+    "配達指定時間（時分）": {},
+    "代引金額": {},
+    "消費税": {},
+    "決済種別": {},
+    "保険金額": {},
+
+    "指定シール1": {},
+    "指定シール2": {},
+    "指定シール3": {},
+    "営業所受取": {},
+    "SRC区分": {},
+    "営業所受取営業所コード": {},
+    "元着区分": {},
+    "メールアドレス": {},
+    "ご不在時連絡先": {},
+
+    "出荷日": { value: "TODAY" },
+    "お問い合せ送り状No.": {},
+    "出荷場印字区分": {},
+    "集約解除指定": {},
+
+    "編集01": {},
+    "編集02": {},
+    "編集03": {},
+    "編集04": {},
+    "編集05": {},
+    "編集06": {},
+    "編集07": {},
+    "編集08": {},
+    "編集09": {},
+    "編集10": {}
+  };
+
+  // ⑤ 住所分割関数
+  function splitAddr(text) {
+    if (!text) return { prefCity: "", rest: "", building: "" };
+    const prefList = ["東京都","北海道","京都府","大阪府","神奈川県","千葉県","埼玉県",
+      "愛知県","兵庫県","福岡県","静岡県","茨城県","広島県","宮城県","新潟県",
+      "長野県","岐阜県","群馬県","栃木県","岡山県","熊本県","滋賀県","三重県",
+      "鹿児島県","山口県","愛媛県","奈良県","青森県","沖縄県","石川県","香川県",
+      "大分県","岩手県","山形県","富山県","福島県","佐賀県","秋田県","山梨県","福井県","和歌山県","徳島県","高知県"];
+
+    const pref = prefList.find(p => text.startsWith(p)) || "";
+    let rest = text.replace(pref, "");
+    const cityMatch = rest.match(/^(.*?[市区町村])/);
+    const city = cityMatch ? cityMatch[1] : "";
+    rest = rest.replace(city, "");
+
+    // 丁番地と建物名をゆるく分割
+    const bldgMatch = rest.match(/(.*?)(ビル|マンション|ハイツ|荘|号室|階|F).*/);
+    const restOnly = bldgMatch ? bldgMatch[1].trim() : rest.trim();
+    const building = bldgMatch ? rest.replace(restOnly, "").trim() : "";
+
+    return {
+      prefCity: pref + city,
+      rest: restOnly,
+      building: building
+    };
   }
 
-  // ✅ ヘッダー＋72列固定のCSV出力
-  const csvText = [headers.join(",")]
-    .concat(output.map(r => r.map(v => `"${v}"`).join(",")))
-    .join("\r\n");
+  // ⑥ クレンジング
+  function clean(val, type) {
+    if (!val) return "";
+    let v = String(val).trim();
 
-  const sjisArray = Encoding.convert(Encoding.stringToCode(csvText), "SJIS");
+    if (type === "tel" || type === "postal") {
+      v = v.replace(/^="?/, "").replace(/"$/, "").replace(/[^0-9\-]/g, "");
+    }
+    if (type === "order") {
+      v = v.replace(/^(FAX|EC)/, "").replace(/[★\[\]\s]/g, "");
+    }
+    return v;
+  }
+
+  // ⑦ 行変換
+  const output = [];
+
+  for (const r of dataRows) {
+    const out = Array(totalCols).fill("");
+
+    outputHeaders.forEach((header, colIndex) => {
+      const rule = mapping[header];
+      if (!rule) return;
+
+      let value = "";
+
+      // 固定値
+      if (rule.value === "TODAY") {
+        const d = new Date();
+        value = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+      } else if (rule.value !== undefined) {
+        value = rule.value;
+      }
+
+      // 入力CSVから取得
+      if (rule.from) {
+        const idx = inputIndex[rule.from];
+        if (idx !== undefined) {
+          value = r[idx];
+        }
+      }
+
+      // 送り主情報
+      if (rule.fromSender) {
+        value = sender[rule.fromSender] || "";
+      }
+
+      // クレンジング
+      if (rule.clean) {
+        value = clean(value, rule.clean);
+      }
+
+      // 住所分割
+      if (rule.split) {
+        const source = rule.fromSender ? sender.address : (r[inputIndex["住所（都道府県・建物名含む）"]] || "");
+        const addr = splitAddr(source);
+        value = addr[rule.split] || "";
+      }
+
+      out[colIndex] = value;
+    });
+
+    output.push(out);
+  }
+
+  // ⑧ CSV生成（SJIS）
+  const csvOut =
+    [outputHeaders.join(",")]
+      .concat(output.map(r => r.map(v => `"${v}"`).join(",")))
+      .join("\r\n");
+
+  const sjisArray = Encoding.convert(Encoding.stringToCode(csvOut), "SJIS");
   return new Blob([new Uint8Array(sjisArray)], { type: "text/csv" });
 }
-
 
 
   // ============================
