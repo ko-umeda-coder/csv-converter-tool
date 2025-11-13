@@ -1,110 +1,142 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>📦 CSVかんたん変換ツール</title>
-<link rel="icon" href="./favicon.ico">
-<style>
-:root {
-  --primary: #0066cc;
-  --primary-hover: #0052a3;
-  --success: #28a745;
-  --error: #dc3545;
-  --bg-light: #f8f9fa;
-  --border: #dee2e6;
-  --text-dark: #212529;
-  font-size: 18px;
-}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Meiryo','Yu Gothic',sans-serif;line-height:1.8;background:var(--bg-light);padding:20px;color:var(--text-dark);}
-.container{max-width:900px;margin:0 auto;}
-.header{background:linear-gradient(135deg,var(--primary),#0080ff);color:white;padding:30px 25px;border-radius:12px;margin-bottom:30px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
-.header h1{font-size:2em;margin-bottom:10px;}
-.header p{font-size:1.1em;opacity:0.95;}
-.section{background:white;padding:30px;border-radius:12px;margin-bottom:25px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-.section h2{font-size:1.6em;color:var(--primary);margin-bottom:25px;padding-bottom:12px;border-bottom:3px solid var(--primary);}
-.form-group{margin-bottom:25px;}
-.form-label{display:block;font-size:1.2em;font-weight:bold;margin-bottom:12px;color:var(--text-dark);}
-.file-input-wrapper{position:relative;border:3px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;background:var(--bg-light);cursor:pointer;transition:all 0.3s;}
-.file-input-wrapper:hover{border-color:var(--primary);background:#e3f2fd;}
-.file-input-wrapper.has-file{border-color:var(--success);background:#d4edda;}
-.file-input-wrapper input[type="file"]{position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;}
-.file-icon{font-size:3em;margin-bottom:10px;}
-.file-text{font-size:1.2em;font-weight:bold;color:var(--text-dark);}
-.file-subtext{font-size:1em;color:#6c757d;margin-top:8px;}
-.file-name{margin-top:15px;font-size:1.1em;color:var(--success);font-weight:bold;}
-select, input[type=text]{width:100%;padding:16px;font-size:1.2em;border:2px solid var(--border);border-radius:8px;background:white;cursor:pointer;transition:border-color 0.3s;}
-select:focus, input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,102,204,0.1);}
-.btn-group{display:flex;gap:15px;}
-.btn{width:100%;padding:18px;font-size:1.3em;font-weight:bold;border:none;border-radius:8px;cursor:pointer;transition:all 0.3s;min-height:60px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
-.btn-primary{background:var(--primary);color:white;}
-.btn-primary:hover:not(:disabled){background:var(--primary-hover);transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,0.2);}
-.btn-primary:disabled{background:#ccc;cursor:not-allowed;opacity:0.6;}
-.message{display:none;padding:20px;margin:20px 0;border-radius:8px;font-size:1.2em;font-weight:bold;border-left:5px solid;}
-.message.error{background:#f8d7da;border-color:var(--error);color:#721c24;}
-.message.success{background:#d4edda;border-color:var(--success);color:#155724;}
-.message.info{background:#e9f7ff;border-color:var(--primary);color:#004085;}
-.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:none;justify-content:center;align-items:center;z-index:9999;}
-.loading-content{text-align:center;color:white;}
-.spinner{width:60px;height:60px;border:6px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.loading-text{font-size:1.5em;font-weight:bold;}
-</style>
-　<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-　<meta http-equiv="Pragma" content="no-cache" />
-　<meta http-equiv="Expires" content="0" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- 🔥 キャッシュ完全無効化 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <title>CSV Converter Tool</title>
+
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fafafa;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .box {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:disabled { background: #9ec9ff; }
+    .message {
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 5px;
+    }
+    .message.info { background: #e7f3ff; color: #004a99; }
+    .message.success { background: #e8ffe8; color: #005f00; }
+    .message.error { background: #ffe8e8; color: #990000; }
+
+    #loading {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 5px solid #ddd;
+      border-top-color: #007bff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="container">
-  <div class="header">
-    <h1>📦 CSVかんたん変換ツール</h1>
-    <p>基幹システムCSVを宅配便用に自動変換</p>
+  <h1>CSV Converter Tool</h1>
+
+  <!-- ================================ -->
+  <!-- 送り主情報入力 -->
+  <!-- ================================ -->
+  <div class="box">
+    <h3>送り主情報</h3>
+    <label>氏名：</label><br>
+    <input id="senderName" type="text" style="width: 100%; margin-bottom: 8px;" /><br>
+
+    <label>郵便番号：</label><br>
+    <input id="senderPostal" type="text" style="width: 100%; margin-bottom: 8px;" /><br>
+
+    <label>住所：</label><br>
+    <input id="senderAddress" type="text" style="width: 100%; margin-bottom: 8px;" /><br>
+
+    <label>電話番号：</label><br>
+    <input id="senderPhone" type="text" style="width: 100%;" />
   </div>
 
-  <div class="section">
-    <h2>📮 送り主情報</h2>
-    <div class="form-group"><label class="form-label">送り主氏名</label><input type="text" id="senderName"></div>
-    <div class="form-group"><label class="form-label">送り主郵便番号</label><input type="text" id="senderPostal"></div>
-    <div class="form-group"><label class="form-label">送り主住所</label><input type="text" id="senderAddress"></div>
-    <div class="form-group"><label class="form-label">送り主電話番号</label><input type="text" id="senderPhone"></div>
+  <!-- ================================ -->
+  <!-- 宅配会社選択 -->
+  <!-- ================================ -->
+  <div class="box">
+    <h3>宅配会社の選択</h3>
+    <select id="courierSelect" style="width: 100%; padding: 8px;"></select>
   </div>
 
-  <div class="section">
-    <h2>🔄 CSV変換</h2>
-    <div id="message" class="message"></div>
-
-    <div class="form-group">
-      <label class="form-label">1️⃣ CSVファイルを選択</label>
-      <div class="file-input-wrapper" id="fileWrapper">
-        <input type="file" id="csvFile" accept=".csv">
-        <div class="file-icon">📄</div>
-        <div class="file-text">クリックしてファイルを選択</div>
-        <div class="file-subtext">または、ここにファイルをドラッグ＆ドロップ</div>
-        <div class="file-name" id="fileName"></div>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">2️⃣ 変換先の宅配会社を選択</label>
-      <select id="courierSelect"></select>
-    </div>
-
-    <div class="btn-group">
-      <button id="convertBtn" class="btn btn-primary" disabled>3️⃣ 変換する</button>
-      <button id="downloadBtn" class="btn btn-primary" style="display:none;">4️⃣ ダウンロード</button>
+  <!-- ================================ -->
+  <!-- CSV入力 -->
+  <!-- ================================ -->
+  <div class="box">
+    <h3>CSVファイルを選択</h3>
+    <div id="fileWrapper">
+      <input type="file" id="csvFile" accept=".csv" />
+      <div id="fileName" style="margin-top: 5px;"></div>
     </div>
   </div>
-</div>
 
-<!-- ライブラリ読込 -->
-<script src="./js/xlsx.full.min.js?v=1.0.0"></script>
-<script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js?v=1.0.0"></script>
-<script src="./js/main.js?v=1.0.0"></script>
+  <!-- ================================ -->
+  <!-- ボタン -->
+  <!-- ================================ -->
+  <button id="convertBtn" class="btn btn-primary" disabled>変換する</button>
+  <button id="downloadBtn" class="btn btn-primary" style="display: none;">ダウンロード</button>
 
+  <div id="message" class="message" style="display:none;"></div>
+
+  <!-- ================================ -->
+  <!-- ローディング表示 -->
+  <!-- ================================ -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">変換中...</div>
+  </div>
+
+  <!-- ================================ -->
+  <!-- 🔥 キャッシュ破壊付きスクリプト読込 -->
+  <!-- ================================ -->
+
+  <script src="./js/xlsx.full.min.js?v=1001"></script>
+  <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.0.0/encoding.min.js?v=1001"></script>
+  <script src="./js/main.js?v=1001"></script>
 
 </body>
 </html>
-
-
