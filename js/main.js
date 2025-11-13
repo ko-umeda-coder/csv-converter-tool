@@ -190,187 +190,248 @@ function splitAddress2(address) {
 }
 
 
+// =======================================================
+// 住所分割：ヤマトB2用（都道府県 / 市区町村 / 残り / 建物名）
+// =======================================================
+// ※ メイン関数内の splitAddress2 はそのまま残し、ヤマトB2用はここで新しく定義する
+function splitAddressYamato(address) {
+  if (!address) return { pref: "", city: "", rest: "", building: "" };
+
+  const prefs = [
+    "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
+    "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
+    "新潟県","富山県","石川県","福井県","山梨県","長野県",
+    "岐阜県","静岡県","愛知県","三重県",
+    "滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
+    "鳥取県","島根県","岡山県","広島県","山口県",
+    "徳島県","香川県","愛媛県","高知県",
+    "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
+  ];
+
+  const pref = prefs.find(p => address.startsWith(p)) || "";
+  let rest = pref ? address.slice(pref.length) : address;
+
+  // 市区町村で分割（市/区/町/村 の直後で分割）
+  const cityMatch = rest.match(/^(.*?[市区町村])/);
+  const city = cityMatch ? cityMatch[1] : "";
+  rest = cityMatch ? rest.slice(city.length) : rest;
+
+  // 建物名・号室の抽出 (単純化)
+  let building = "";
+  const lastCommaIndex = rest.lastIndexOf("号室");
+  if (lastCommaIndex !== -1) {
+    building = rest.slice(lastCommaIndex - 4).trim(); // 例: 号室の前に建物名の一部を抽出
+    // よりシンプルに、建物名とそれ以外を分ける。
+    // B2クラウドでは、住所に「市区町村＋番地」まで、アパートマンションに「建物名・号室」を期待することが多いため、
+    // ここでは、建物名と判断できるものを末尾から分離するロジックを簡略化し、「残り」をすべて住所に入れることにします。
+    
+    // B2クラウドの住所は、都道府県、市区郡町村、番地の3つの列に分かれているわけではないため、
+    // 実際は「お届け先住所」に「都道府県＋市区町村＋番地」をセットし、
+    // 「お届け先アパートマンション」に「建物名・号室」をセットするのが最も安全です。
+    
+    // 建物名の自動抽出は難しいため、ここでは**「お届け先住所」に都道府県から番地まで、「お届け先アパートマンション」に建物名・号室をセット**する最も一般的な手法を採用します。
+    
+    // ただし、元のコードにある `splitAddress2`の定義が不明確なため、
+    // **「お届け先住所」にフルアドレスを、「お届け先アパートマンション」を空欄**とする「正解ファイル」のパターンに合わせるのが最優先です。
+    return { 
+      fullAddress: address.trim(),
+      apartment: "" 
+    };
+  }
+
+  return { 
+    fullAddress: address.trim(),
+    apartment: "" 
+  };
+}
+
+
 // ============================
-// ヤマト B2クラウド（住所25文字分割対応・95列）
+// ヤマト B2クラウド（正解ファイル準拠修正版）
 // ============================
 async function convertToYamato(csvFile, sender) {
-  console.log("🚚 ヤマトB2変換開始");
+  console.log("🚚 ヤマトB2変換開始");
 
-  // 入力CSV読み込み
-  const csvText = await csvFile.text();
-  const rows    = csvText.trim().split(/\r?\n/).map(l => l.split(","));
-  const data    = rows.slice(1);
+  // 入力CSV読み込み
+  const csvText = await csvFile.text();
+  const rows    = csvText.trim().split(/\r?\n/).map(l => l.split(","));
+  const data    = rows.slice(1);
 
-  // テンプレート（正解Excelと同じ構成）
-  const res = await fetch("./js/newb2web_template1.xlsx");
-  const buf = await res.arrayBuffer();
-  const wb  = XLSX.read(buf, { type: "array" });
+  // テンプレート（正解Excelと同じ構成）
+  const res = await fetch("./js/newb2web_template1.xlsx");
+  const buf = await res.arrayBuffer();
+  const wb  = XLSX.read(buf, { type: "array" });
 
-  const sheetName = wb.SheetNames[0];
-  const sheet     = wb.Sheets[sheetName];
+  const sheetName = wb.SheetNames[0];
+  const sheet     = wb.Sheets[sheetName];
 
-  // 1行目ヘッダ取得
-  const headerRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-  const headerRow  = headerRows[0] || [];
+  // 1行目ヘッダ取得
+  const headerRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const headerRow  = headerRows[0] || [];
 
-  // ヘッダ検索（完全一致ではなく「含む」）
-  function findHeaderIndex(keyword) {
-    return headerRow.findIndex(h => typeof h === "string" && h.includes(keyword));
-  }
+  // ヘッダ検索（完全一致ではなく「含む」）
+  function findHeaderIndex(keyword) {
+    return headerRow.findIndex(h => typeof h === "string" && h.includes(keyword));
+  }
 
-  // 列番号→A/B/C変換
-  function colLetter(idx) {
-    let s = "";
-    let n = idx;
-    while (n >= 0) {
-      s = String.fromCharCode((n % 26) + 65) + s;
-      n = Math.floor(n / 26) - 1;
-    }
-    return s;
-  }
+  // 列番号→A/B/C変換
+  function colLetter(idx) {
+    let s = "";
+    let n = idx;
+    while (n >= 0) {
+      s = String.fromCharCode((n % 26) + 65) + s;
+      n = Math.floor(n / 26) - 1;
+    }
+    return s;
+  }
 
-  // -------------------------------
-  // splitAddress2()：25文字制限
-  // -------------------------------
-  function split2(addr) {
-    const s = splitAddress2(addr); // 例: {pref, city, addr2, addr3}
+  // -------------------------------
+  // 住所処理（正解ファイル準拠: 住所はフルアドレス、アパートは空欄）
+  // -------------------------------
+  // ※ 正解ファイルはご依頼主住所が分割されていないため、このパターンに合わせる
+  const getAddressParts = (addr) => {
+    if (!addr) return { full: "", apt: "" };
+    
+    // ここでは、全てを「full」に格納し、「apt」は空欄とする（正解ファイル準拠）
+    return { full: addr.trim(), apt: "" };
+  };
 
-    return {
-      a1: (s.pref || "") + (s.city || ""),  // 都道府県＋市区町村
-      a2: s.addr2 || "",                    // 丁目番地等（25文字以内）
-      a3: s.addr3 || ""                     // 残り（マンション名等）
-    };
-  }
+  const senderA = getAddressParts(sender.address);
 
-  const senderA = split2(sender.address);
+  // マッピングルール
+  const ruleDefs = [
+    // お客様管理番号 = CSV B列
+    { key: "お客様管理番号", type: "csv", col: 1, clean: "order" },
 
-  // マッピングルール
-  const ruleDefs = [
-    // お客様管理番号 = CSV B列
-    { key: "お客様管理番号", type: "csv", col: 1, clean: "order" },
+    // 固定値
+    { key: "送り状種類", type: "value", value: "0" },
+    { key: "クール区分", type: "value", value: "0" },
 
-    // 固定
-    { key: "送り状種類", type: "value", value: "0" },
-    { key: "クール区分", type: "value", value: "0" },
+    // 日付
+    { key: "出荷予定日", type: "today" },
+    { key: "出荷日",     type: "today" },
 
-    // 日付
-    { key: "出荷予定日", type: "today" },
-    { key: "出荷日",     type: "today" },
+    // お届け先（CSV側：K=10, L=11, M=12, N=13）
+    { key: "お届け先電話番号", type: "csv", col: 13, clean: "tel" },
+    { key: "お届け先郵便番号", type: "csv", col: 10, clean: "postal" },
 
-    // お届け先
-    { key: "お届け先電話番号", type: "csv", col: 13, clean: "tel" },
-    { key: "お届け先郵便番号", type: "csv", col: 10, clean: "postal" },
+    // ⭐修正1: お届け先住所はフルアドレスを格納
+    { key: "お届け先住所",   type: "addrFull" }, 
 
-    // 住所1（pref＋city＋addr2）
-    { key: "お届け先住所",   type: "addrFull" },
+    // ⭐修正2: お届け先アパートマンションは空欄を格納
+    { key: "お届け先アパートマンション", type: "addrApt" }, 
 
-    // 住所2（addr3）
-    { key: "お届け先アパートマンション", type: "addrApt" },
+    { key: "お届け先名", type: "csv", col: 12 },
+    { key: "敬称",      type: "value", value: "様" },
 
-    { key: "お届け先名", type: "csv", col: 12 },
-    { key: "敬称",      type: "value", value: "様" },
+    // ご依頼主（UI入力）
+    { key: "ご依頼主電話番号",    type: "senderPhone" },
+    { key: "ご依頼主郵便番号",    type: "senderPostal" },
 
-    // 送り主
-    { key: "ご依頼主電話番号",    type: "senderPhone" },
-    { key: "ご依頼主郵便番号",    type: "senderPostal" },
-    { key: "ご依頼主住所",        type: "senderAddressFull" },
-    { key: "ご依頼主アパートマンション", type: "senderApt" },
-    { key: "ご依頼主名",          type: "senderName" },
+    // ⭐修正3: ご依頼主住所はフルアドレスを格納
+    { key: "ご依頼主住所",        type: "senderAddressFull" }, 
 
-    // 品名
-    { key: "品名１", type: "value", value: "ブーケ加工品" }
-  ];
+    // ⭐修正4: ご依頼主アパートマンションは空欄を格納
+    { key: "ご依頼主アパートマンション", type: "senderApt" }, 
 
-  // ヘッダごとの列番号キャッシュ
-  const headIndex = {};
-  for (const r of ruleDefs) {
-    const idx = findHeaderIndex(r.key);
-    if (idx >= 0) headIndex[r.key] = idx;
-  }
+    { key: "ご依頼主名",          type: "senderName" },
 
-  const today = new Date();
-  const todayStr =
-    `${today.getFullYear()}/${String(today.getMonth()+1).padStart(2,"0")}/${String(today.getDate()).padStart(2,"0")}`;
+    // 品名
+    { key: "品名１", type: "value", value: "ブーケ加工品" }
+  ];
 
-  let excelRow = 2; // 2行目から
+  // ヘッダごとの列番号キャッシュ
+  const headIndex = {};
+  for (const r of ruleDefs) {
+    const idx = findHeaderIndex(r.key);
+    if (idx >= 0) headIndex[r.key] = idx;
+  }
 
-  // -------------------------------
-  // 書き込みループ
-  // -------------------------------
-  for (const r of data) {
+  const today = new Date();
+  const todayStr =
+    `${today.getFullYear()}/${String(today.getMonth()+1).padStart(2,"0")}/${String(today.getDate()).padStart(2,"0")}`;
 
-    const addr = split2(r[11] || "");
+  let excelRow = 2; // 2行目から
 
-    for (const rule of ruleDefs) {
-      const idx = headIndex[rule.key];
-      if (idx === undefined) continue;
+  // -------------------------------
+  // 書き込みループ
+  // -------------------------------
+  for (const r of data) {
 
-      const col = colLetter(idx);
-      const cell = col + excelRow;
+    // お届け先住所の処理（フルアドレスを抽出）
+    const addressCsv = r[11] || "";
+    const addr = getAddressParts(addressCsv);
 
-      let v = "";
+    for (const rule of ruleDefs) {
+      const idx = headIndex[rule.key];
+      if (idx === undefined) continue;
 
-      switch (rule.type) {
-        case "value":
-          v = rule.value;
-          break;
+      const col = colLetter(idx);
+      const cell = col + excelRow;
 
-        case "today":
-          v = todayStr;
-          break;
+      let v = "";
 
-        case "csv": {
-          let src = r[rule.col] || "";
-          if (rule.clean === "tel" || rule.clean === "postal")
-            src = cleanTelPostal(src);
-          if (rule.clean === "order")
-            src = cleanOrderNumber(src);
-          v = src;
-          break;
-        }
+      switch (rule.type) {
+        case "value":
+          v = rule.value;
+          break;
 
-        // -------------------------------
-        // お届け先住所
-        // -------------------------------
-        case "addrFull":
-          v = addr.a1 + addr.a2;
-          break;
+        case "today":
+          v = todayStr;
+          break;
 
-        case "addrApt":
-          v = addr.a3;
-          break;
+        case "csv": {
+          let src = r[rule.col] || "";
+          if (rule.clean === "tel" || rule.clean === "postal")
+            src = cleanTelPostal(src);
+          if (rule.clean === "order")
+            src = cleanOrderNumber(src);
+          v = src;
+          break;
+        }
 
-        // -------------------------------
-        // 送り主
-        // -------------------------------
-        case "senderPhone":
-          v = cleanTelPostal(sender.phone);
-          break;
+        // -------------------------------
+        // お届け先住所 (修正箇所)
+        // -------------------------------
+        case "addrFull": // お届け先住所
+          v = addr.full;
+          break;
 
-        case "senderPostal":
-          v = cleanTelPostal(sender.postal);
-          break;
+        case "addrApt": // お届け先アパートマンション
+          v = addr.apt;
+          break;
 
-        case "senderAddressFull":
-          v = senderA.a1 + senderA.a2;
-          break;
+        // -------------------------------
+        // 送り主 (修正箇所)
+        // -------------------------------
+        case "senderPhone":
+          v = cleanTelPostal(sender.phone);
+          break;
 
-        case "senderApt":
-          v = senderA.a3;
-          break;
+        case "senderPostal":
+          v = cleanTelPostal(sender.postal);
+          break;
 
-        case "senderName":
-          v = sender.name;
-          break;
-      }
+        case "senderAddressFull": // ご依頼主住所
+          v = senderA.full;
+          break;
 
-      sheet[cell] = { v, t: "s" };
-    }
+        case "senderApt": // ご依頼主アパートマンション
+          v = senderA.apt;
+          break;
 
-    excelRow++;
-  }
+        case "senderName":
+          v = sender.name;
+          break;
+      }
 
-  return wb;
+      sheet[cell] = { v, t: "s" };
+    }
+
+    excelRow++;
+  }
+
+  return wb;
 }
 
 
