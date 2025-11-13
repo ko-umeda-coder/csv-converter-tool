@@ -107,10 +107,10 @@ const waitForXLSX = () => new Promise((resolve) => {
     const output = [];
 
     for (const r of data) {
-      const name = r[12] || "";
-      const postal = cleanTelPostal(r[10] || "");
-      const addrFull = r[11] || "";   // ← フル住所1列
-      const phone = cleanTelPostal(r[13] || "");
+      const name = r[11] || "";
+      const postal = cleanTelPostal(r[9] || "");
+      const addrFull = r[10] || "";   // ← フル住所1列
+      const phone = cleanTelPostal(r[12] || "");
       const orderNo = cleanOrderNumber(r[1] || "");
 
       const row = [];
