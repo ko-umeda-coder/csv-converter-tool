@@ -108,7 +108,7 @@ const waitForXLSX = () => new Promise((resolve) => {
 
     for (const r of data) {
       const name = r[13] || "";
-      const postal = cleanTelPostal(r[10] || "");
+      const postal = r[10] || "";
       const addrFull = r[11] || "";   // ← フル住所1列
       const phone = cleanTelPostal(r[14] || "");
       const orderNo = cleanOrderNumber(r[1] || "");
