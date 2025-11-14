@@ -203,7 +203,7 @@ const waitForXLSX = () => new Promise((resolve) => {
       out[6] = "";
 
       out[7] = r[13] || "";
-      out[8] = cleanOrderNumber(r[1] || "");
+      out[25] = cleanOrderNumber(r[1] || "");
 
       out[17] = sender.phone;
       out[18] = sender.postal;
@@ -214,7 +214,7 @@ const waitForXLSX = () => new Promise((resolve) => {
 
       out[21] = sender.name;
 
-      out[25] = "ブーケ加工品";
+      out[24] = "ブーケ加工品";
       out[58] = todayStr;
 
       output.push(out);
