@@ -109,20 +109,20 @@ const waitForXLSX = () => new Promise((resolve) => {
     for (const r of data) {
       const name = r[11] || "";
       const postal = cleanTelPostal(r[9] || "");
-      const addrFull = r[10] || "";   // ← フル住所1列
+      const addrFull = r[12] || "";   // ← フル住所1列
       const phone = cleanTelPostal(r[12] || "");
       const orderNo = cleanOrderNumber(r[1] || "");
 
       const row = [];
 
       row.push("1","0","","","","","1"); // 1〜7
-      row.push(name);      // 8
+      row.push(postal);      // 8
       row.push("様");      // 9
       row.push("");        // 10
-      row.push(postal);    // 11
+      row.push(name);    // 11
 
       // 12〜15（住所） → addrFull のみを入れて残り空白
-      row.push(addrFull);  // 12
+      row.push(phone);  // 12
       row.push("");        // 13
       row.push("");        // 14
       row.push("");        // 15
