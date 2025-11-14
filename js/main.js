@@ -90,7 +90,7 @@ const waitForXLSX = () => new Promise((resolve) => {
   }
   function cleanOrderNumber(v) {
     if (!v) return "";
-    return String(v).replace(/^(FAX|EC)/i, "").replace(/[★\[\]\s]/g, "");
+    return String(v);
   }
 
   // ==========================================================
