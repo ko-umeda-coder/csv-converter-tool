@@ -107,7 +107,7 @@ const waitForXLSX = () => new Promise((resolve) => {
     const output = [];
 
     for (const r of data) {
-      const name = r[11] || "";
+      const name = r[13] || "";
       const postal = cleanTelPostal(r[9] || "");
       const addrFull = r[12] || "";   // ← フル住所1列
       const phone = cleanTelPostal(r[12] || "");
@@ -118,7 +118,7 @@ const waitForXLSX = () => new Promise((resolve) => {
       row.push("1","0","","","","","1"); // 1〜7
       row.push(name);      // 8
       row.push("様");      // 9
-      row.push(name);        // 10
+      row.push("");        // 10
       row.push(postal);    // 11
 
       // 12〜15（住所） → addrFull のみを入れて残り空白
