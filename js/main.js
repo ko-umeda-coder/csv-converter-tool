@@ -203,7 +203,7 @@ const waitForXLSX = () => new Promise((resolve) => {
       out[6] = "";
 
       out[7] = r[13] || "";
-      out[25] = cleanOrderNumber(r[1] || "");
+      out[25] = r[1] || "";
 
       out[17] = sender.phone;
       out[18] = sender.postal;
