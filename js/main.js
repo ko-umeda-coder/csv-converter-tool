@@ -194,7 +194,7 @@ const waitForXLSX = () => new Promise((resolve) => {
       const postal   = r[11] || "";
 
       out[0]  = "0";
-      out[2]  = cleanTelPostal(r[15]||"");
+      out[2]  = cleanTelPostal(r[14]||"");
       out[3]  = postal;
 
       // 住所1のみにセット（住所2,3 は空欄）
