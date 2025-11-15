@@ -24,18 +24,13 @@ const PREFS = [
 ];
 
 // ============================
-// 都道府県 + 市区町村以下を分離
+// 都道府県を抽出
 // ============================
 function splitAddressPref(addr) {
   if (!addr) return ["", ""];
-
-  // Trim + 全角/半角スペース除去
   const a = addr.trim().replace(/^[ 　]+/, "");
-
   for (const pref of PREFS) {
-    if (a.startsWith(pref)) {
-      return [pref, a.slice(pref.length)];
-    }
+    if (a.startsWith(pref)) return [pref, a.slice(pref.length)];
   }
   return ["", a];
 }
@@ -45,44 +40,36 @@ function splitAddressPref(addr) {
 // ============================
 function splitCity(addr) {
   if (!addr) return ["", ""];
-
   const a = addr.trim();
-
-  // 「○○市」「○○区」「○○町」「○○村」までを最長一致で切り出す
   const match = a.match(/^(.*?[市区町村])/);
-
   if (match) {
     const city = match[1];
     return [city, a.slice(city.length)];
   }
-  
   return ["", a];
 }
 
 // ============================
-// 文字列を固定長で分割
+// 固定長で分割
 // ============================
 function splitByLength(text, partLen, maxParts) {
   const s = text || "";
   const parts = [];
   for (let i = 0; i < maxParts; i++) {
     const start = i * partLen;
-    if (start >= s.length) {
-      parts.push("");
-    } else {
-      parts.push(s.slice(start, start + partLen));
-    }
+    parts.push(s.slice(start, start + partLen) || "");
   }
   return parts;
 }
 
 // ============================
-// CSVを安全に読み込む（XLSXパーサ）
+// CSV安全読み込み（修正版）
 // ============================
 function parseCsvSafe(csvText) {
-  const wb = XLSX.read(csvText, { type: "string" });
+  const data = new Uint8Array([...csvText].map(c => c.charCodeAt(0)));
+  const wb = XLSX.read(data, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(ws, { header: 1 });
+  return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
 }
 
 // ============================
@@ -128,7 +115,7 @@ function parseCsvSafe(csvText) {
   }
 
   // ============================
-  // UI 周り
+  // UI
   // ============================
   function setupFileInput() {
     fileInput.addEventListener("change", () => {
@@ -170,146 +157,86 @@ function parseCsvSafe(csvText) {
   // 共通ユーティリティ
   // ============================
   function cleanTelPostal(v) {
-    if (!v) return "";
-    return String(v).replace(/[^0-9\-]/g, "");
+    return v ? String(v).replace(/[^0-9\-]/g, "") : "";
   }
 
   function cleanOrderNumber(v) {
-    if (!v) return "";
-    return String(v).replace(/^(FAX|EC)/i, "").replace(/[★\[\]\s]/g, "");
+    return v ? String(v).replace(/^(FAX|EC)/i, "").replace(/[★\[\]\s]/g, "") : "";
   }
-
- // ==========================================================
-// 🟥 ゆうパック（都道府県 → 市区町村 → 以下24文字分割）完全版
-// ==========================================================
-async function convertToJapanPost(csvFile, sender) {
-  console.log("📮 ゆうパック変換開始（都道府県→市区町村→以下24文字分割 完全版）");
-
-  const csvText = await csvFile.text();
-  const rows = parseCsvSafe(csvText);
-  const data = rows.slice(1);
-
-  const todayStr = new Date().toISOString().slice(0,10).replace(/-/g,"/");
-  const output = [];
-
-  // ---------------------------
-  // ご依頼主住所（都道府県 → 市区町村 → 以下24文字分割）
-  // ---------------------------
-  const [sPref, sAfterPref] = splitAddressPref(sender.address);
-  const [sCity, sAfterCity] = splitCity(sAfterPref);
-  const sRest = splitByLength(sAfterCity, 24, 2);
-
-  const senderAddrLines = [
-    sPref,
-    sCity,
-    sRest[0],
-    sRest[1]
-  ];
-
-  for (const r of data) {
-    const name    = r[13] || "";
-    const postal  = cleanTelPostal(r[11] || "");
-    const addrRaw = r[12] || "";
-    const phone   = cleanTelPostal(r[14] || "");
-    const orderNo = cleanOrderNumber(r[1] || "");
-
-    // ---------------------------
-    // 住所（都道府県 → 市区町村 → 以下24文字×2）
-    // ---------------------------
-    const [pref, afterPref] = splitAddressPref(addrRaw);
-    const [city, afterCity] = splitCity(afterPref);
-
-    const restLines = splitByLength(afterCity, 24, 2);
-
-    const toAddrLines = [
-      pref,         // 12: 都道府県
-      city,         // 13: 市区町村
-      restLines[0], // 14: 以降1
-      restLines[1]  // 15: 以降2
-    ];
-
-    const row = [];
-
-    // ゆうパック固定列
-    row.push("1","0","","","","","1");
-
-    // 宛名
-    row.push(name);
-    row.push("様");
-    row.push("");
-    row.push(postal);
-
-    // 住所（今回の修正版：都道府県 / 市区町村 / 24字 / 次24字）
-    row.push(toAddrLines[0]); // 12
-    row.push(toAddrLines[1]); // 13
-    row.push(toAddrLines[2]); // 14
-    row.push(toAddrLines[3]); // 15
-
-    // 電話
-    row.push(phone);
-    row.push("");
-    row.push("");
-    row.push("");
-
-    // 空欄
-    row.push("","","");
-
-    // ご依頼主
-    row.push(sender.name);  // 23
-    row.push("");           // 24
-    row.push("");           // 25
-    row.push(sender.postal);// 26
-
-    // ご依頼主住所（修正版）
-    row.push(senderAddrLines[0]); // 27
-    row.push(senderAddrLines[1]); // 28
-    row.push(senderAddrLines[2]); // 29
-    row.push(senderAddrLines[3]); // 30
-
-    // 電話など
-    row.push(sender.phone); // 31
-    row.push("");           // 32
-    row.push(orderNo);      // 33
-    row.push("");           // 34
-
-    // 品名
-    row.push("ブーケ加工品"); // 35
-    row.push("");             // 36
-    row.push("");             // 37
-
-    // 日付など
-    row.push(todayStr); // 38
-    row.push(""); row.push(""); row.push(""); row.push(""); row.push("");
-
-    // 64列まで埋める
-    while (row.length < 64) row.push("");
-
-    // 割引
-    row.push("0"); // 65
-
-    // 71まで空欄
-    while (row.length < 71) row.push("");
-
-    // 完了通知
-    row.push("0"); // 72
-
-    output.push(row);
-  }
-
-  // CSV 出力（SJIS）
-  const csvOut = output
-    .map(r => r.map(v => `"${v ?? ""}"`).join(","))
-    .join("\r\n");
-
-  const sjis = Encoding.convert(Encoding.stringToCode(csvOut), "SJIS");
-  return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
-}
 
   // ==========================================================
-  // 🟩 佐川（25文字 × 3 分割）※従来仕様
+  // 🟥 ゆうパック（都道府県 → 市区町村 → 以下24文字分割）
+  // ==========================================================
+  async function convertToJapanPost(csvFile, sender) {
+    console.log("📮 ゆうパック変換開始");
+
+    const csvText = await csvFile.text();
+    const rows = parseCsvSafe(csvText);
+    const data = rows.slice(1);
+
+    const todayStr = new Date().toISOString().slice(0,10).replace(/-/g,"/");
+    const output = [];
+
+    // ご依頼主住所
+    const [sPref, sAfterPref] = splitAddressPref(sender.address);
+    const [sCity, sAfterCity] = splitCity(sAfterPref);
+    const sRest = splitByLength(sAfterCity, 24, 2);
+
+    const senderAddrLines = [sPref, sCity, sRest[0], sRest[1]];
+
+    for (const r of data) {
+      const name    = r[13] || "";
+      const postal  = cleanTelPostal(r[11] || "");
+      const addrRaw = r[12] || "";
+      const phone   = cleanTelPostal(r[14] || "");
+      const orderNo = cleanOrderNumber(r[1] || "");
+
+      const [pref, afterPref] = splitAddressPref(addrRaw);
+      const [city, afterCity] = splitCity(afterPref);
+      const restLines = splitByLength(afterCity, 24, 2);
+
+      const toAddrLines = [pref, city, restLines[0], restLines[1]];
+
+      const row = [];
+
+      row.push("1","0","","","","","1");
+      row.push(name);
+      row.push("様");
+      row.push("");
+      row.push(postal);
+
+      row.push(...toAddrLines);
+
+      row.push(phone, "", "", "");
+      row.push("", "", "");
+
+      row.push(sender.name, "", "", sender.postal);
+      row.push(...senderAddrLines);
+
+      row.push(sender.phone, "", orderNo, "");
+      row.push("ブーケ加工品", "", "");
+
+      row.push(todayStr, "", "", "", "", "");
+
+      while (row.length < 64) row.push("");
+      row.push("0");
+      while (row.length < 71) row.push("");
+      row.push("0");
+
+      output.push(row);
+    }
+
+    const csvOut = output.map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\r\n");
+    const sjis = Encoding.convert(Encoding.stringToCode(csvOut), "SJIS");
+
+    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+  }
+
+  // ==========================================================
+  // 🟩 佐川（従来仕様）
   // ==========================================================
   async function convertToSagawa(csvFile, sender) {
-    console.log("📦 佐川変換開始（従来仕様）");
+    console.log("📦 佐川変換開始");
 
     const csvText = await csvFile.text();
     const rows = parseCsvSafe(csvText);
@@ -354,18 +281,17 @@ async function convertToJapanPost(csvFile, sender) {
       output.push(out);
     }
 
-    const csvTextOut =
-      output.map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\r\n");
-
+    const csvTextOut = output.map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\r\n");
     const sjis = Encoding.convert(Encoding.stringToCode(csvTextOut),"SJIS");
-    return new Blob([new Uint8Array(sjis)],{type:"text/csv"});
+
+    return new Blob([new Uint8Array(sjis)], {type:"text/csv"});
   }
 
   // ==========================================================
-  // 🟦 ヤマト（25字 × 2）※従来仕様
+  // 🟦 ヤマト（従来仕様）
   // ==========================================================
   async function convertToYamato(csvFile, sender) {
-    console.log("🚚 ヤマト変換開始（従来仕様）");
+    console.log("🚚 ヤマト変換開始");
 
     const csvText = await csvFile.text();
     const rows = parseCsvSafe(csvText);
@@ -471,7 +397,7 @@ async function convertToJapanPost(csvFile, sender) {
         } else if (courier === "japanpost") {
           convertedCSV   = await convertToJapanPost(file, sender);
           mergedWorkbook = null;
-        } else { // sagawa
+        } else {
           convertedCSV   = await convertToSagawa(file, sender);
           mergedWorkbook = null;
         }
