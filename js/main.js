@@ -179,10 +179,10 @@ function parseCsvSafe(csvText) {
     const senderAddrLines = [senderPref, ...senderRestLines];
 
     for (const r of data) {
-      const name    = r[13] || "";
-      const postal  = cleanTelPostal(r[11] || "");
-      const addrRaw = r[12] || "";
-      const phone   = cleanTelPostal(r[14] || "");
+      const name    = r[14] || "";
+      const postal  = cleanTelPostal(r[10] || "");
+      const addrRaw = r[11] || "";
+      const phone   = cleanTelPostal(r[13] || "");
       const orderNo = cleanOrderNumber(r[1] || "");
 
       // 住所（都道府県＋市区町村以下25×3）
