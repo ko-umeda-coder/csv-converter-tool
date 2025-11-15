@@ -41,6 +41,25 @@ function splitAddressPref(addr) {
 }
 
 // ============================
+// 市区町村を抽出
+// ============================
+function splitCity(addr) {
+  if (!addr) return ["", ""];
+
+  const a = addr.trim();
+
+  // 「○○市」「○○区」「○○町」「○○村」までを最長一致で切り出す
+  const match = a.match(/^(.*?[市区町村])/);
+
+  if (match) {
+    const city = match[1];
+    return [city, a.slice(city.length)];
+  }
+  
+  return ["", a];
+}
+
+// ============================
 // 文字列を固定長で分割
 // ============================
 function splitByLength(text, partLen, maxParts) {
