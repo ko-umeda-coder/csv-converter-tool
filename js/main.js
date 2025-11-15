@@ -160,75 +160,131 @@ function parseCsvSafe(csvText) {
     return String(v).replace(/^(FAX|EC)/i, "").replace(/[★\[\]\s]/g, "");
   }
 
-  // ==========================================================
-  // 🟥 ゆうパック（都道府県 + 市区町村以下25×3）
-  // ==========================================================
-  async function convertToJapanPost(csvFile, sender) {
-    console.log("📮 ゆうパック変換開始（完全版）");
+ // ==========================================================
+// 🟥 ゆうパック（都道府県 → 市区町村 → 以下24文字分割）完全版
+// ==========================================================
+async function convertToJapanPost(csvFile, sender) {
+  console.log("📮 ゆうパック変換開始（都道府県→市区町村→以下24文字分割 完全版）");
 
-    const csvText = await csvFile.text();
-    const rows = parseCsvSafe(csvText);
-    const data = rows.slice(1);
+  const csvText = await csvFile.text();
+  const rows = parseCsvSafe(csvText);
+  const data = rows.slice(1);
 
-    const todayStr = new Date().toISOString().slice(0,10).replace(/-/g,"/");
-    const output = [];
+  const todayStr = new Date().toISOString().slice(0,10).replace(/-/g,"/");
+  const output = [];
 
-    // ご依頼主住所（都道府県＋市区町村以下25×3）
-    const [senderPref, senderRest] = splitAddressPref(sender.address);
-    const senderRestLines = splitByLength(senderRest, 25, 3);
-    const senderAddrLines = [senderPref, ...senderRestLines];
+  // ---------------------------
+  // ご依頼主住所（都道府県 → 市区町村 → 以下24文字分割）
+  // ---------------------------
+  const [sPref, sAfterPref] = splitAddressPref(sender.address);
+  const [sCity, sAfterCity] = splitCity(sAfterPref);
+  const sRest = splitByLength(sAfterCity, 24, 2);
 
-    for (const r of data) {
-      const name    = r[12] || "";
-      const postal  = cleanTelPostal(r[10] || "");
-      const addrRaw = r[11] || "";
-      const phone   = cleanTelPostal(r[13] || "");
-      const orderNo = cleanOrderNumber(r[1] || "");
+  const senderAddrLines = [
+    sPref,
+    sCity,
+    sRest[0],
+    sRest[1]
+  ];
 
-      // 住所（都道府県＋市区町村以下25×3）
-      const [pref, rest] = splitAddressPref(addrRaw);
-      const restLines = splitByLength(rest, 25, 3);
-      const toAddrLines = [pref, ...restLines];
+  for (const r of data) {
+    const name    = r[13] || "";
+    const postal  = cleanTelPostal(r[11] || "");
+    const addrRaw = r[12] || "";
+    const phone   = cleanTelPostal(r[14] || "");
+    const orderNo = cleanOrderNumber(r[1] || "");
 
-      const row = [];
+    // ---------------------------
+    // 住所（都道府県 → 市区町村 → 以下24文字×2）
+    // ---------------------------
+    const [pref, afterPref] = splitAddressPref(addrRaw);
+    const [city, afterCity] = splitCity(afterPref);
 
-      // 必須列
-      row.push("1","0","","","","","1");
+    const restLines = splitByLength(afterCity, 24, 2);
 
-      row.push(name, "様", "", postal);
+    const toAddrLines = [
+      pref,         // 12: 都道府県
+      city,         // 13: 市区町村
+      restLines[0], // 14: 以降1
+      restLines[1]  // 15: 以降2
+    ];
 
-      // 都道府県 + 市区町村以下
-      row.push(toAddrLines[0], toAddrLines[1], toAddrLines[2], toAddrLines[3]);
+    const row = [];
 
-      row.push(phone, "", "", "");
-      row.push("","","");
+    // ゆうパック固定列
+    row.push("1","0","","","","","1");
 
-      // ご依頼主
-      row.push(sender.name, "", "", sender.postal);
-      row.push(senderAddrLines[0], senderAddrLines[1], senderAddrLines[2], senderAddrLines[3]);
-      row.push(sender.phone, "", orderNo, "");
+    // 宛名
+    row.push(name);
+    row.push("様");
+    row.push("");
+    row.push(postal);
 
-      // 品名
-      row.push("ブーケ加工品","","");
+    // 住所（今回の修正版：都道府県 / 市区町村 / 24字 / 次24字）
+    row.push(toAddrLines[0]); // 12
+    row.push(toAddrLines[1]); // 13
+    row.push(toAddrLines[2]); // 14
+    row.push(toAddrLines[3]); // 15
 
-      // 日付
-      row.push(todayStr,"","","","","");
+    // 電話
+    row.push(phone);
+    row.push("");
+    row.push("");
+    row.push("");
 
-      while (row.length < 64) row.push("");
-      row.push("0"); // 65 割引
-      while (row.length < 71) row.push("");
-      row.push("0"); // 72 完了通知
+    // 空欄
+    row.push("","","");
 
-      output.push(row);
-    }
+    // ご依頼主
+    row.push(sender.name);  // 23
+    row.push("");           // 24
+    row.push("");           // 25
+    row.push(sender.postal);// 26
 
-    const csvOut = output
-      .map(r => r.map(v => `"${v ?? ""}"`).join(","))
-      .join("\r\n");
+    // ご依頼主住所（修正版）
+    row.push(senderAddrLines[0]); // 27
+    row.push(senderAddrLines[1]); // 28
+    row.push(senderAddrLines[2]); // 29
+    row.push(senderAddrLines[3]); // 30
 
-    const sjis = Encoding.convert(Encoding.stringToCode(csvOut), "SJIS");
-    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+    // 電話など
+    row.push(sender.phone); // 31
+    row.push("");           // 32
+    row.push(orderNo);      // 33
+    row.push("");           // 34
+
+    // 品名
+    row.push("ブーケ加工品"); // 35
+    row.push("");             // 36
+    row.push("");             // 37
+
+    // 日付など
+    row.push(todayStr); // 38
+    row.push(""); row.push(""); row.push(""); row.push(""); row.push("");
+
+    // 64列まで埋める
+    while (row.length < 64) row.push("");
+
+    // 割引
+    row.push("0"); // 65
+
+    // 71まで空欄
+    while (row.length < 71) row.push("");
+
+    // 完了通知
+    row.push("0"); // 72
+
+    output.push(row);
   }
+
+  // CSV 出力（SJIS）
+  const csvOut = output
+    .map(r => r.map(v => `"${v ?? ""}"`).join(","))
+    .join("\r\n");
+
+  const sjis = Encoding.convert(Encoding.stringToCode(csvOut), "SJIS");
+  return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+}
 
   // ==========================================================
   // 🟩 佐川（25文字 × 3 分割）※従来仕様
