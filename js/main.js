@@ -138,7 +138,7 @@ const waitForXLSX = () => new Promise((resolve) => {
     for (const r of data) {
       // ★ インポート元の列指定はテスト版から変更しない
       const name    = r[13] || "";                 // 宛名
-      const postal  = cleanTelPostal(r[13] || ""); // 郵便番号
+      const postal  = cleanTelPostal(r[11] || ""); // 郵便番号
       const addrRaw = r[12] || "";                 // フル住所1列
       const phone   = cleanTelPostal(r[14] || ""); // 電話番号
       const orderNo = cleanOrderNumber(r[1] || "");// ご注文番号
