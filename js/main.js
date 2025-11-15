@@ -179,7 +179,7 @@ function parseCsvSafe(csvText) {
     const senderAddrLines = [senderPref, ...senderRestLines];
 
     for (const r of data) {
-      const name    = r[14] || "";
+      const name    = r[12] || "";
       const postal  = cleanTelPostal(r[10] || "");
       const addrRaw = r[11] || "";
       const phone   = cleanTelPostal(r[13] || "");
