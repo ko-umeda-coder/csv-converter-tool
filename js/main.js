@@ -185,10 +185,10 @@ function parseCsvSafe(csvText) {
     const senderAddrLines = [sPref, sCity, sRest[0], sRest[1]];
 
     for (const r of data) {
-      const name    = r[13] || "";
-      const postal  = cleanTelPostal(r[11] || "");
-      const addrRaw = r[12] || "";
-      const phone   = cleanTelPostal(r[14] || "");
+      const name    = r[12] || "";
+      const postal  = cleanTelPostal(r[10] || "");
+      const addrRaw = r[11] || "";
+      const phone   = cleanTelPostal(r[13] || "");
       const orderNo = cleanOrderNumber(r[1] || "");
 
       const [pref, afterPref] = splitAddressPref(addrRaw);
