@@ -165,163 +165,190 @@ function parseCsvSafe(csvText) {
   }
 
 // ==========================================================
-// 🟥 ゆうパック（都道府県 → 市区町村 → 以下24文字分割）
-// 　 ゆうプリWEB向け：Shift-JIS + 非対応文字正規化 完全版
+// 🟥 ゆうパック（Shift-JIS）ゆうプリWEB対応・完全版
 // ==========================================================
 
-// SJISに無い文字をゆうプリで通る形に正規化する
+
+// ----------------------------------------------------------
+// ① SJIS 非対応文字の正規化（外字 → 通常字）
+// ----------------------------------------------------------
 function normalizeForSJIS(str) {
   if (!str) return "";
 
   let s = String(str);
 
-  // 代表的な機種依存文字・外字のマッピング
   const map = {
-    "髙": "高",
-    "﨑": "崎",
-    "神": "神",
-    "塚": "塚",
-    "𠮷": "吉",
+    "髙": "高", "﨑": "崎", "神": "神", "塚": "塚", "𠮷": "吉",
 
     "①": "1", "②": "2", "③": "3", "④": "4", "⑤": "5",
     "⑥": "6", "⑦": "7", "⑧": "8", "⑨": "9", "⑩": "10",
-    "⑪": "11", "⑫": "12", "⑬": "13", "⑭": "14", "⑮": "15",
-    "⑯": "16", "⑰": "17", "⑱": "18", "⑲": "19", "⑳": "20",
 
-    "Ⅰ": "I", "Ⅱ": "II", "Ⅲ": "III", "Ⅳ": "IV", "Ⅴ": "V",
-    "Ⅵ": "VI", "Ⅶ": "VII", "Ⅷ": "VIII", "Ⅸ": "IX", "Ⅹ": "X",
+    "Ⅰ": "I", "Ⅱ": "II", "Ⅲ": "III",
 
-    "㈱": "(株)",
-    "㈲": "(有)",
-    "㈹": "(代)",
+    "㈱": "(株)", "㈲": "(有)",
 
-    "㎜": "mm",
-    "㎝": "cm",
-    "㎞": "km",
-    "㌔": "キロ",
-    "㌢": "センチ",
-    "㌘": "グラム",
+    "㎜": "mm", "㎝": "cm", "㎞": "km",
+    "㌔": "キロ", "㌢": "センチ", "㌘": "グラム",
 
-    "—": "ー",
-    "–": "ー",
-    "−": "-",
+    "—": "ー", "–": "ー", "−": "-",
 
-    "’": "'",
-    "‘": "'",
-    "”": "\"",
-    "“": "\"",
-    "・": "･",  // 半角っぽくしたい場合
+    "’": "'", "”": "\"", "“": "\"",
   };
 
   for (const [from, to] of Object.entries(map)) {
     s = s.replace(new RegExp(from, "g"), to);
   }
 
-  // 絵文字などサロゲートペアは削除
+  // サロゲートペア（絵文字等）をすべて削除
   s = s.replace(/[\uD800-\uDFFF]/g, "");
 
-  // 制御文字（タブ等）も念のためスペースに
+  // 制御文字除去
   s = s.replace(/[\u0000-\u001F\u007F]/g, " ");
 
   return s;
 }
 
-// 全ての文字列フィールドに normalizeForSJIS をかけるヘルパ
+
+// ----------------------------------------------------------
+// ② UTF-16 セーフな 24 文字 × 2 行分割
+// ----------------------------------------------------------
+function splitByLengthSafe(str, size, lines = 2) {
+  if (!str) return Array(lines).fill("");
+
+  // UTF-16 サロゲートペア安全な配列化
+  const chars = Array.from(str);
+
+  const result = [];
+  for (let i = 0; i < lines; i++) {
+    const start = i * size;
+    result[i] = chars.slice(start, start + size).join("");
+  }
+  return result;
+}
+
+
+// ----------------------------------------------------------
+// ③ 正規化ヘルパ
+// ----------------------------------------------------------
 function norm(v) {
   return normalizeForSJIS(v ?? "");
 }
 
+
 // ==========================================================
-// メイン：ゆうパックCSV生成（Shift-JIS）
+// 🟥 メイン処理：ゆうパックCSV生成（Shift-JIS）
 // ==========================================================
 async function convertToJapanPost(csvFile, sender) {
-  console.log("📮 ゆうパック変換開始（SJIS版）");
+  console.log("📮 ゆうパック変換開始（完全版 Shift-JIS）");
 
   const csvText = await csvFile.text();
   const rows = parseCsvSafe(csvText);
-  const data = rows.slice(1);  // 1行目ヘッダ想定
+  const data = rows.slice(1);
 
   const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "/");
   const output = [];
 
-  // ご依頼主情報をあらかじめ分解
-  const senderAddr = norm(sender.address);
-  const [sPref, sAfterPref] = splitAddressPref(senderAddr);
+
+  // =======================
+  // ご依頼主（送付元）
+  // =======================
+  const sAddrRaw = norm(sender.address);
+  const [sPref, sAfterPref] = splitAddressPref(sAddrRaw);
   const [sCity, sAfterCity] = splitCity(sAfterPref);
-  const sRest = splitByLength(sAfterCity, 24, 2);
-  const senderAddrLines = [norm(sPref), norm(sCity), norm(sRest[0]), norm(sRest[1])];
+  const sRest = splitByLengthSafe(sAfterCity, 24, 2);
+  const senderAddrLines = [
+    norm(sPref),
+    norm(sCity),
+    norm(sRest[0]),
+    norm(sRest[1])
+  ];
 
   const senderName   = norm(sender.name);
   const senderPostal = norm(sender.postal);
   const senderPhone  = norm(sender.phone);
 
+
+  // =======================
+  // 宛先（受取人）
+  // =======================
   for (const r of data) {
-    // ===== 元CSVから値取得 =====
-    const nameRaw    = r[12] || "";
-    const postalRaw  = r[10] || "";
-    const addrRaw    = r[11] || "";
-    const phoneRaw   = r[13] || "";
-    const orderNoRaw = r[1]  || "";
 
-    // ===== 正規化 & 整形 =====
-    const name    = norm(nameRaw);
-    const postal  = norm(cleanTelPostal(postalRaw));
-    const addrStr = norm(addrRaw);
-    const phone   = norm(cleanTelPostal(phoneRaw));
-    const orderNo = norm(cleanOrderNumber(orderNoRaw));
+    const name    = norm(r[12] || "");
+    const postal  = norm(cleanTelPostal(r[10] || ""));
+    const addrRaw = norm(r[11] || "");
+    const phone   = norm(cleanTelPostal(r[13] || ""));
+    const orderNo = norm(cleanOrderNumber(r[1] || ""));
 
-    // 住所分割（都道府県 → 市区町村 → 残り24文字×2行）
-    const [pref, afterPref] = splitAddressPref(addrStr);
+    const [pref, afterPref] = splitAddressPref(addrRaw);
     const [city, afterCity] = splitCity(afterPref);
-    const restLines = splitByLength(afterCity, 24, 2);
-    const toAddrLines = [norm(pref), norm(city), norm(restLines[0]), norm(restLines[1])];
 
-    // ===== ゆうパック行生成 =====
+    const restLines = splitByLengthSafe(afterCity, 24, 2);
+    const toAddrLines = [
+      norm(pref),
+      norm(city),
+      norm(restLines[0]),
+      norm(restLines[1])
+    ];
+
+
+    // =======================
+    // ゆうパックCSV 1行生成
+    // =======================
     const row = [];
 
-    // ここからは元の仕様どおり（列順そのまま）
-    row.push("1", "0", "", "", "", "", "1");  // 固定部
-    row.push(name);                           // 名前
-    row.push("様");                           // 敬称
-    row.push("");                             // 予備
-    row.push(postal);                         // 郵便番号
+    row.push("1", "0", "", "", "", "", "1");
 
-    row.push(...toAddrLines);                // 住所1〜4
+    row.push(name);
+    row.push("様");
+    row.push("");
 
-    row.push(phone, "", "", "");             // 電話ほか
-    row.push("", "", "");                    // 予備
+    row.push(postal);
 
-    row.push(senderName, "", "", senderPostal); // ご依頼主名・郵便
-    row.push(...senderAddrLines);               // ご依頼主住所1〜4
+    row.push(...toAddrLines);
 
-    row.push(senderPhone, "", orderNo, "");  // ご依頼主TEL・お客様番号など
-    row.push("ブーケ加工品", "", "");        // 品名ほか（固定）
+    row.push(phone, "", "", "");
+    row.push("", "", "");
 
-    row.push(todayStr, "", "", "", "", "");  // 出荷日ほか
+    row.push(senderName, "", "", senderPostal);
+    row.push(...senderAddrLines);
 
-    // 列数を仕様どおりに合わせる（元コード準拠）
+    row.push(senderPhone, "", orderNo, "");
+    row.push("ブーケ加工品", "", "");
+
+    row.push(todayStr, "", "", "", "", "");
+
+
+    // 列数調整（ゆうパック仕様）
     while (row.length < 64) row.push("");
-    row.push("0");                           // 64列目？
+    row.push("0");
     while (row.length < 71) row.push("");
-    row.push("0");                           // 最終列
+    row.push("0");
 
     output.push(row);
   }
 
-  // ===== CSV テキスト生成（CRLF & ダブルクォート囲み） =====
+
+  // ==========================================================
+  // CSV（CRLF & ダブルクォート囲み）
+  // ==========================================================
   const csvOut = output
     .map(r => r.map(v => `"${v}"`).join(","))
     .join("\r\n");
 
-  // ===== Shift-JIS に変換（ゆうプリWEB仕様） =====
-  // Encoding.js 等のライブラリ前提
+
+  // ==========================================================
+  // Shift-JIS エンコード（ゆうプリWEB仕様必須）
+  // ==========================================================
   const sjisArray = Encoding.convert(
     Encoding.stringToCode(csvOut),
     "SJIS"
   );
 
-  return new Blob([new Uint8Array(sjisArray)], { type: "text/csv" });
+  return new Blob([new Uint8Array(sjisArray)], {
+    type: "text/csv"
+  });
 }
+
 
   // ==========================================================
   // 🟩 佐川（従来仕様）
