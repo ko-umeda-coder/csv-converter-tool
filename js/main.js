@@ -368,47 +368,63 @@ async function convertToJapanPost(csvFile, sender) {
 }
 
 
-  // ==========================================================
-  // 🟩 佐川（従来仕様）
+ // ==========================================================
+  // 🟥 佐川（住所1列・74列固定）
   // ==========================================================
   async function convertToSagawa(csvFile, sender) {
-    console.log("📦 佐川変換開始");
+    console.log("📦【テスト】佐川開始（住所1列）");
+
+    const headers = [
+      "お届け先コード取得区分","お届け先コード","お届け先電話番号","お届け先郵便番号",
+      "お届け先住所１","お届け先住所２","お届け先住所３",
+      "お届け先名称１","お届け先名称２","お客様管理番号","お客様コード",
+      "部署ご担当者コード取得区分","部署ご担当者コード","部署ご担当者名称",
+      "荷送人電話番号","ご依頼主コード取得区分","ご依頼主コード",
+      "ご依頼主電話番号","ご依頼主郵便番号","ご依頼主住所１",
+      "ご依頼主住所２","ご依頼主名称１","ご依頼主名称２",
+      "荷姿","品名１","品名２","品名３","品名４","品名５",
+      "荷札荷姿","荷札品名１","荷札品名２","荷札品名３","荷札品名４","荷札品名５",
+      "荷札品名６","荷札品名７","荷札品名８","荷札品名９","荷札品名１０","荷札品名１１",
+      "出荷個数","スピード指定","クール便指定","配達日",
+      "配達指定時間帯","配達指定時間（時分）","代引金額","消費税","決済種別","保険金額",
+      "指定シール１","指定シール２","指定シール３",
+      "営業所受取","SRC区分","営業所受取営業所コード","元着区分",
+      "メールアドレス","ご不在時連絡先","出荷日","お問い合せ送り状No.",
+      "出荷場印字区分","集約解除指定","編集01","編集02","編集03","編集04",
+      "編集05","編集06","編集07","編集08","編集09","編集10"
+    ];
 
     const csvText = await csvFile.text();
-    const rows = parseCsvSafe(csvText);
+    const rows = csvText.trim().split(/\r?\n/).map(l=>l.split(","));
     const data = rows.slice(1);
-
     const todayStr = new Date().toISOString().slice(0,10).replace(/-/g,"/");
     const output = [];
-
-    const senderAddrLines = splitByLength(sender.address, 25, 2);
 
     for (const r of data) {
       const out = Array(74).fill("");
 
-      const addrFull = r[11] || "";
-      const postal   = cleanTelPostal(r[10] || "");
-      const tel      = cleanTelPostal(r[13] || "");
-      const name     = r[12] || "";
-      const orderNo  = cleanOrderNumber(r[1] || "");
+      const addrFull = r[12] || "";
+      const postal   = cleanTelPostal(r[11] || "");
 
-      const toAddrLines = splitByLength(addrFull, 25, 3);
+      out[0]  = "0";
+      out[2]  = cleanTelPostal(r[14]||"");
+      out[3]  = postal;
 
-      out[0] = "0";
-      out[2] = tel;
-      out[3] = postal;
+      // 住所1のみにセット（住所2,3 は空欄）
+      out[4] = addrFull;
+      out[5] = "";
+      out[6] = "";
 
-      out[4] = toAddrLines[0];
-      out[5] = toAddrLines[1];
-      out[6] = toAddrLines[2];
-
-      out[7] = name;
-      out[25] = orderNo;
+      out[7] = r[13] || "";
+      out[25] = r[1] || "";
 
       out[17] = sender.phone;
       out[18] = sender.postal;
-      out[19] = senderAddrLines[0];
-      out[20] = senderAddrLines[1];
+
+      // ご依頼主住所1 のみに sender.address
+      out[19] = sender.address;
+      out[20] = "";
+
       out[21] = sender.name;
 
       out[24] = "ブーケ加工品";
@@ -417,21 +433,23 @@ async function convertToJapanPost(csvFile, sender) {
       output.push(out);
     }
 
-    const csvTextOut = output.map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\r\n");
-    const sjis = Encoding.convert(Encoding.stringToCode(csvTextOut),"SJIS");
+    const csvTextOut =
+      headers.join(",") + "\r\n" +
+      output.map(r=>r.map(v=>`"${v}"`).join(",")).join("\r\n");
 
-    return new Blob([new Uint8Array(sjis)], {type:"text/csv"});
+    const sjis = Encoding.convert(Encoding.stringToCode(csvTextOut),"SJIS");
+    return new Blob([new Uint8Array(sjis)],{type:"text/csv"});
   }
 
   // ==========================================================
-  // 🟦 ヤマト（従来仕様）
+  // 🟥 ヤマト（住所1列・Excel）
   // ==========================================================
   async function convertToYamato(csvFile, sender) {
-    console.log("🚚 ヤマト変換開始");
+    console.log("🚚【テスト】ヤマト開始（住所1列）");
 
     const csvText = await csvFile.text();
-    const rows = parseCsvSafe(csvText);
-    const data = rows.slice(1);
+    const rows    = csvText.trim().split(/\r?\n/).map(l=>l.split(","));
+    const data    = rows.slice(1);
 
     const res = await fetch("./js/newb2web_template1.xlsx");
     const wb = XLSX.read(await res.arrayBuffer(),{type:"array"});
@@ -439,8 +457,7 @@ async function convertToJapanPost(csvFile, sender) {
     const header = XLSX.utils.sheet_to_json(sheet,{header:1})[0];
 
     function colLetter(i){
-      let s=""; 
-      while(i>=0){ s=String.fromCharCode(i%26+65)+s; i=Math.floor(i/26)-1; }
+      let s=""; while(i>=0){ s=String.fromCharCode(i%26+65)+s; i=Math.floor(i/26)-1; }
       return s;
     }
     function idx(key){
@@ -456,13 +473,13 @@ async function convertToJapanPost(csvFile, sender) {
       tel   : idx("お届け先電話番号"),
       zip   : idx("お届け先郵便番号"),
       adr   : idx("お届け先住所"),
-      apt   : idx("お届け先アパートマンション"),
+      apt   : idx("お届け先アパート"),
       name  : idx("お届け先名"),
       honor : idx("敬称"),
       sTel  : idx("ご依頼主電話番号"),
       sZip  : idx("ご依頼主郵便番号"),
       sAdr  : idx("ご依頼主住所"),
-      sApt  : idx("ご依頼主アパートマンション"),
+      sApt  : idx("ご依頼主アパート"),
       sName : idx("ご依頼主名"),
       item  : idx("品名１")
     };
@@ -476,14 +493,11 @@ async function convertToJapanPost(csvFile, sender) {
     }
 
     for(const r of data){
-      const order = cleanOrderNumber(r[1]  || "");
-      const tel   = cleanTelPostal(r[14]   || "");
-      const zip   = cleanTelPostal(r[11]   || "");
-      const adr   = r[12] || "";
-      const name  = r[13] || "";
-
-      const toAddrLines = splitByLength(adr, 25, 2);
-      const senderAddrLines = splitByLength(sender.address, 25, 2);
+      const order = cleanOrderNumber(r[1]||"");
+      const tel   = cleanTelPostal(r[14]||"");
+      const zip   = cleanTelPostal(r[11]||"");
+      const name  = r[13]||"";
+      const adr   = r[12]||"";  // ★住所1列
 
       set(map.order, order);
       set(map.type, "0");
@@ -494,16 +508,16 @@ async function convertToJapanPost(csvFile, sender) {
       set(map.tel, tel);
       set(map.zip, zip);
 
-      set(map.adr, toAddrLines[0]);
-      set(map.apt, toAddrLines[1]);
+      set(map.adr, adr);
+      set(map.apt, "");
 
       set(map.name, name);
       set(map.honor, "様");
 
       set(map.sTel, sender.phone);
       set(map.sZip, sender.postal);
-      set(map.sAdr, senderAddrLines[0]);
-      set(map.sApt, senderAddrLines[1]);
+      set(map.sAdr, sender.address);
+      set(map.sApt, "");
       set(map.sName, sender.name);
 
       set(map.item, "ブーケ加工品");
