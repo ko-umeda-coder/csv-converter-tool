@@ -164,78 +164,163 @@ function parseCsvSafe(csvText) {
     return v ? String(v).replace(/^(FAX|EC)/i, "").replace(/[★\[\]\s]/g, "") : "";
   }
 
- // ==========================================================
-// 🟥 ゆうパック（都道府県 → 市区町村 → 以下24文字分割） UTF-8+BOM 版
+// ==========================================================
+// 🟥 ゆうパック（都道府県 → 市区町村 → 以下24文字分割）
+// 　 ゆうプリWEB向け：Shift-JIS + 非対応文字正規化 完全版
+// ==========================================================
+
+// SJISに無い文字をゆうプリで通る形に正規化する
+function normalizeForSJIS(str) {
+  if (!str) return "";
+
+  let s = String(str);
+
+  // 代表的な機種依存文字・外字のマッピング
+  const map = {
+    "髙": "高",
+    "﨑": "崎",
+    "神": "神",
+    "塚": "塚",
+    "𠮷": "吉",
+
+    "①": "1", "②": "2", "③": "3", "④": "4", "⑤": "5",
+    "⑥": "6", "⑦": "7", "⑧": "8", "⑨": "9", "⑩": "10",
+    "⑪": "11", "⑫": "12", "⑬": "13", "⑭": "14", "⑮": "15",
+    "⑯": "16", "⑰": "17", "⑱": "18", "⑲": "19", "⑳": "20",
+
+    "Ⅰ": "I", "Ⅱ": "II", "Ⅲ": "III", "Ⅳ": "IV", "Ⅴ": "V",
+    "Ⅵ": "VI", "Ⅶ": "VII", "Ⅷ": "VIII", "Ⅸ": "IX", "Ⅹ": "X",
+
+    "㈱": "(株)",
+    "㈲": "(有)",
+    "㈹": "(代)",
+
+    "㎜": "mm",
+    "㎝": "cm",
+    "㎞": "km",
+    "㌔": "キロ",
+    "㌢": "センチ",
+    "㌘": "グラム",
+
+    "—": "ー",
+    "–": "ー",
+    "−": "-",
+
+    "’": "'",
+    "‘": "'",
+    "”": "\"",
+    "“": "\"",
+    "・": "･",  // 半角っぽくしたい場合
+  };
+
+  for (const [from, to] of Object.entries(map)) {
+    s = s.replace(new RegExp(from, "g"), to);
+  }
+
+  // 絵文字などサロゲートペアは削除
+  s = s.replace(/[\uD800-\uDFFF]/g, "");
+
+  // 制御文字（タブ等）も念のためスペースに
+  s = s.replace(/[\u0000-\u001F\u007F]/g, " ");
+
+  return s;
+}
+
+// 全ての文字列フィールドに normalizeForSJIS をかけるヘルパ
+function norm(v) {
+  return normalizeForSJIS(v ?? "");
+}
+
+// ==========================================================
+// メイン：ゆうパックCSV生成（Shift-JIS）
 // ==========================================================
 async function convertToJapanPost(csvFile, sender) {
-  console.log("📮 ゆうパック変換開始");
+  console.log("📮 ゆうパック変換開始（SJIS版）");
 
   const csvText = await csvFile.text();
   const rows = parseCsvSafe(csvText);
-  const data = rows.slice(1);
+  const data = rows.slice(1);  // 1行目ヘッダ想定
 
   const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "/");
   const output = [];
 
-  // ご依頼主住所
-  const [sPref, sAfterPref] = splitAddressPref(sender.address);
+  // ご依頼主情報をあらかじめ分解
+  const senderAddr = norm(sender.address);
+  const [sPref, sAfterPref] = splitAddressPref(senderAddr);
   const [sCity, sAfterCity] = splitCity(sAfterPref);
   const sRest = splitByLength(sAfterCity, 24, 2);
+  const senderAddrLines = [norm(sPref), norm(sCity), norm(sRest[0]), norm(sRest[1])];
 
-  const senderAddrLines = [sPref, sCity, sRest[0], sRest[1]];
+  const senderName   = norm(sender.name);
+  const senderPostal = norm(sender.postal);
+  const senderPhone  = norm(sender.phone);
 
   for (const r of data) {
-    const name    = r[12] || "";
-    const postal  = cleanTelPostal(r[10] || "");
-    const addrRaw = r[11] || "";
-    const phone   = cleanTelPostal(r[13] || "");
-    const orderNo = cleanOrderNumber(r[1] || "");
+    // ===== 元CSVから値取得 =====
+    const nameRaw    = r[12] || "";
+    const postalRaw  = r[10] || "";
+    const addrRaw    = r[11] || "";
+    const phoneRaw   = r[13] || "";
+    const orderNoRaw = r[1]  || "";
 
-    const [pref, afterPref] = splitAddressPref(addrRaw);
+    // ===== 正規化 & 整形 =====
+    const name    = norm(nameRaw);
+    const postal  = norm(cleanTelPostal(postalRaw));
+    const addrStr = norm(addrRaw);
+    const phone   = norm(cleanTelPostal(phoneRaw));
+    const orderNo = norm(cleanOrderNumber(orderNoRaw));
+
+    // 住所分割（都道府県 → 市区町村 → 残り24文字×2行）
+    const [pref, afterPref] = splitAddressPref(addrStr);
     const [city, afterCity] = splitCity(afterPref);
     const restLines = splitByLength(afterCity, 24, 2);
+    const toAddrLines = [norm(pref), norm(city), norm(restLines[0]), norm(restLines[1])];
 
-    const toAddrLines = [pref, city, restLines[0], restLines[1]];
-
+    // ===== ゆうパック行生成 =====
     const row = [];
 
-    row.push("1","0","","","","","1");
-    row.push(name);
-    row.push("様");
-    row.push("");
-    row.push(postal);
+    // ここからは元の仕様どおり（列順そのまま）
+    row.push("1", "0", "", "", "", "", "1");  // 固定部
+    row.push(name);                           // 名前
+    row.push("様");                           // 敬称
+    row.push("");                             // 予備
+    row.push(postal);                         // 郵便番号
 
-    row.push(...toAddrLines);
+    row.push(...toAddrLines);                // 住所1〜4
 
-    row.push(phone, "", "", "");
-    row.push("", "", "");
+    row.push(phone, "", "", "");             // 電話ほか
+    row.push("", "", "");                    // 予備
 
-    row.push(sender.name, "", "", sender.postal);
-    row.push(...senderAddrLines);
+    row.push(senderName, "", "", senderPostal); // ご依頼主名・郵便
+    row.push(...senderAddrLines);               // ご依頼主住所1〜4
 
-    row.push(sender.phone, "", orderNo, "");
-    row.push("ブーケ加工品", "", "");
+    row.push(senderPhone, "", orderNo, "");  // ご依頼主TEL・お客様番号など
+    row.push("ブーケ加工品", "", "");        // 品名ほか（固定）
 
-    row.push(todayStr, "", "", "", "", "");
+    row.push(todayStr, "", "", "", "", "");  // 出荷日ほか
 
+    // 列数を仕様どおりに合わせる（元コード準拠）
     while (row.length < 64) row.push("");
-    row.push("0");
+    row.push("0");                           // 64列目？
     while (row.length < 71) row.push("");
-    row.push("0");
+    row.push("0");                           // 最終列
 
     output.push(row);
   }
 
-  // CSV テキスト生成
+  // ===== CSV テキスト生成（CRLF & ダブルクォート囲み） =====
   const csvOut = output
-    .map(r => r.map(v => `"${v ?? ""}"`).join(","))
+    .map(r => r.map(v => `"${v}"`).join(","))
     .join("\r\n");
 
-  // 🔥 Excel が UTF-8 と認識するよう BOM を付与
-  const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+  // ===== Shift-JIS に変換（ゆうプリWEB仕様） =====
+  // Encoding.js 等のライブラリ前提
+  const sjisArray = Encoding.convert(
+    Encoding.stringToCode(csvOut),
+    "SJIS"
+  );
 
-  // UTF-8 のまま出力（SJIS 変換は削除）
-  return new Blob([BOM, csvOut], { type: "text/csv;charset=UTF-8" });
+  return new Blob([new Uint8Array(sjisArray)], { type: "text/csv" });
 }
 
   // ==========================================================
