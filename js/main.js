@@ -164,73 +164,79 @@ function parseCsvSafe(csvText) {
     return v ? String(v).replace(/^(FAX|EC)/i, "").replace(/[★\[\]\s]/g, "") : "";
   }
 
-  // ==========================================================
-  // 🟥 ゆうパック（都道府県 → 市区町村 → 以下24文字分割）
-  // ==========================================================
-  async function convertToJapanPost(csvFile, sender) {
-    console.log("📮 ゆうパック変換開始");
+ // ==========================================================
+// 🟥 ゆうパック（都道府県 → 市区町村 → 以下24文字分割） UTF-8+BOM 版
+// ==========================================================
+async function convertToJapanPost(csvFile, sender) {
+  console.log("📮 ゆうパック変換開始");
 
-    const csvText = await csvFile.text();
-    const rows = parseCsvSafe(csvText);
-    const data = rows.slice(1);
+  const csvText = await csvFile.text();
+  const rows = parseCsvSafe(csvText);
+  const data = rows.slice(1);
 
-    const todayStr = new Date().toISOString().slice(0,10).replace(/-/g,"/");
-    const output = [];
+  const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, "/");
+  const output = [];
 
-    // ご依頼主住所
-    const [sPref, sAfterPref] = splitAddressPref(sender.address);
-    const [sCity, sAfterCity] = splitCity(sAfterPref);
-    const sRest = splitByLength(sAfterCity, 24, 2);
+  // ご依頼主住所
+  const [sPref, sAfterPref] = splitAddressPref(sender.address);
+  const [sCity, sAfterCity] = splitCity(sAfterPref);
+  const sRest = splitByLength(sAfterCity, 24, 2);
 
-    const senderAddrLines = [sPref, sCity, sRest[0], sRest[1]];
+  const senderAddrLines = [sPref, sCity, sRest[0], sRest[1]];
 
-    for (const r of data) {
-      const name    = r[12] || "";
-      const postal  = cleanTelPostal(r[10] || "");
-      const addrRaw = r[11] || "";
-      const phone   = cleanTelPostal(r[13] || "");
-      const orderNo = cleanOrderNumber(r[1] || "");
+  for (const r of data) {
+    const name    = r[12] || "";
+    const postal  = cleanTelPostal(r[10] || "");
+    const addrRaw = r[11] || "";
+    const phone   = cleanTelPostal(r[13] || "");
+    const orderNo = cleanOrderNumber(r[1] || "");
 
-      const [pref, afterPref] = splitAddressPref(addrRaw);
-      const [city, afterCity] = splitCity(afterPref);
-      const restLines = splitByLength(afterCity, 24, 2);
+    const [pref, afterPref] = splitAddressPref(addrRaw);
+    const [city, afterCity] = splitCity(afterPref);
+    const restLines = splitByLength(afterCity, 24, 2);
 
-      const toAddrLines = [pref, city, restLines[0], restLines[1]];
+    const toAddrLines = [pref, city, restLines[0], restLines[1]];
 
-      const row = [];
+    const row = [];
 
-      row.push("1","0","","","","","1");
-      row.push(name);
-      row.push("様");
-      row.push("");
-      row.push(postal);
+    row.push("1","0","","","","","1");
+    row.push(name);
+    row.push("様");
+    row.push("");
+    row.push(postal);
 
-      row.push(...toAddrLines);
+    row.push(...toAddrLines);
 
-      row.push(phone, "", "", "");
-      row.push("", "", "");
+    row.push(phone, "", "", "");
+    row.push("", "", "");
 
-      row.push(sender.name, "", "", sender.postal);
-      row.push(...senderAddrLines);
+    row.push(sender.name, "", "", sender.postal);
+    row.push(...senderAddrLines);
 
-      row.push(sender.phone, "", orderNo, "");
-      row.push("ブーケ加工品", "", "");
+    row.push(sender.phone, "", orderNo, "");
+    row.push("ブーケ加工品", "", "");
 
-      row.push(todayStr, "", "", "", "", "");
+    row.push(todayStr, "", "", "", "", "");
 
-      while (row.length < 64) row.push("");
-      row.push("0");
-      while (row.length < 71) row.push("");
-      row.push("0");
+    while (row.length < 64) row.push("");
+    row.push("0");
+    while (row.length < 71) row.push("");
+    row.push("0");
 
-      output.push(row);
-    }
-
-    const csvOut = output.map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\r\n");
-    const sjis = Encoding.convert(Encoding.stringToCode(csvOut), "SJIS");
-
-    return new Blob([new Uint8Array(sjis)], { type: "text/csv" });
+    output.push(row);
   }
+
+  // CSV テキスト生成
+  const csvOut = output
+    .map(r => r.map(v => `"${v ?? ""}"`).join(","))
+    .join("\r\n");
+
+  // 🔥 Excel が UTF-8 と認識するよう BOM を付与
+  const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
+
+  // UTF-8 のまま出力（SJIS 変換は削除）
+  return new Blob([BOM, csvOut], { type: "text/csv;charset=UTF-8" });
+}
 
   // ==========================================================
   // 🟩 佐川（従来仕様）
