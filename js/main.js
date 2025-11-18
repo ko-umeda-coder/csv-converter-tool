@@ -386,10 +386,10 @@ async function convertToJapanPost(csvFile, sender) {
     for (const r of data) {
       const out = Array(74).fill("");
 
-      const addrFull = r[12] || "";
-      const postal   = cleanTelPostal(r[11] || "");
-      const tel      = cleanTelPostal(r[14] || "");
-      const name     = r[13] || "";
+      const addrFull = r[11] || "";
+      const postal   = cleanTelPostal(r[10] || "");
+      const tel      = cleanTelPostal(r[13] || "");
+      const name     = r[12] || "";
       const orderNo  = cleanOrderNumber(r[1] || "");
 
       const toAddrLines = splitByLength(addrFull, 25, 3);
