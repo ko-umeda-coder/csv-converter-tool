@@ -63,14 +63,16 @@ function splitByLength(text, partLen, maxParts) {
 }
 
 // ============================
-// CSV安全読み込み（修正版）
+// CSV安全読み込み（UTF-8版 修正版）
 // ============================
 function parseCsvSafe(csvText) {
-  const data = new Uint8Array([...csvText].map(c => c.charCodeAt(0)));
-  const wb = XLSX.read(data, { type: "array" });
+  // ここで csvText は「UTF-8 をブラウザが JS 文字列にしたもの」
+  // なので、そのまま string として XLSX に渡せばよい
+  const wb = XLSX.read(csvText, { type: "string" });
   const ws = wb.Sheets[wb.SheetNames[0]];
   return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
 }
+
 
 // ============================
 // メイン処理
