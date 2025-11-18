@@ -592,6 +592,7 @@ async function convertToSagawa(csvFile, sender) {
       set(map.sName, sender.name);
 
       set(map.item, "ブーケ加工品");
+      set(map.item2, order);    
 
       rowExcel++;
     }
