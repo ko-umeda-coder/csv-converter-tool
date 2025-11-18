@@ -158,9 +158,25 @@ function parseCsvSafe(csvText) {
   // ============================
   // 共通ユーティリティ
   // ============================
-  function cleanTelPostal(v) {
-    return v ? String(v).replace(/[^0-9\-]/g, "") : "";
+function cleanTelPostal(v) {
+  if (!v) return "";
+
+  // 数字とハイフン以外を除去
+  let s = String(v).replace(/[^0-9\-]/g, "");
+
+  // ハイフン除去して桁数判定（ゆうプリはハイフンなしで扱う）
+  const digits = s.replace(/-/g, "");
+
+  // 13桁を超えたら14桁以降を削除
+  if (digits.length > 13) {
+    s = digits.slice(0, 13);
+  } else {
+    s = digits;
   }
+
+  return s;
+}
+
 
   function cleanOrderNumber(v) {
     return v ? String(v).replace(/^(FAX|EC)/i, "").replace(/[★\[\]\s]/g, "") : "";
