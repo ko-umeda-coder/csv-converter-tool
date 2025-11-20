@@ -82,7 +82,6 @@ function parseCsvSafe(csvText) {
   console.log("🔥 main.js 起動（完全版）");
 
   const fileInput     = document.getElementById("csvFile");
-  const fileWrapper   = document.getElementById("fileWrapper");
   const fileName      = document.getElementById("fileName");
   const convertBtn    = document.getElementById("convertBtn");
   const downloadBtn   = document.getElementById("downloadBtn");
@@ -119,19 +118,19 @@ function parseCsvSafe(csvText) {
   // ============================
   // UI
   // ============================
-  function setupFileInput() {
-    fileInput.addEventListener("change", () => {
-      if (fileInput.files.length > 0) {
-        fileName.textContent = fileInput.files[0].name;
-        fileWrapper.classList.add("has-file");
-        convertBtn.disabled = false;
-      } else {
-        fileName.textContent = "";
-        fileWrapper.classList.remove("has-file");
-        convertBtn.disabled = true;
-      }
-    });
-  }
+function setupFileInput() {
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length > 0) {
+        fileName.textContent = fileInput.files[0].name;
+        // fileWrapper.classList.add("has-file"); // 削除またはコメントアウト
+        convertBtn.disabled = false;
+      } else {
+        fileName.textContent = "";
+        // fileWrapper.classList.remove("has-file"); // 削除またはコメントアウト
+        convertBtn.disabled = true;
+      }
+    });
+  }
 
   function showMessage(text, type = "info") {
     messageBox.style.display = "block";
